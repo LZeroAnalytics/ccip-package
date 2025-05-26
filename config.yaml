@@ -1,0 +1,17 @@
+networks:
+  - enclaveId: "5dcf352c0dcb43048987b27185aa2d44" 
+    type: "ethereum"
+    rpc: https://ec82cfa994764d8285fa0d42ba974cb4-rpc.network.bloctopus.io
+    ws: wss://ec82cfa994764d8285fa0d42ba974cb4-rpc.network.bloctopus.io
+    chain_id: "9250445"
+    private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
+    faucet: "https://ec82cfa994764d8285fa0d42ba974cb4-faucet.network.bloctopus.io"
+  - enclaveId: "a6447c69d04d4739b4740b24c5af57a9"
+    type: "ethereum"
+    rpc: https://d25028740f3a45359c410a2303a34d34-rpc.network.bloctopus.io
+    ws: wss://d25028740f3a45359c410a2303a34d34-rpc.network.bloctopus.io
+    chain_id: "9388201"
+    private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
+    faucet: "https://d25028740f3a45359c410a2303a34d34-faucet.network.bloctopus.io"
+
+ccip:

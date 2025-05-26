@@ -1,0 +1,14 @@
+{
+  "chains": {
+    "blocktopus1": {
+      "rpc": "https://ec82cfa994764d8285fa0d42ba974cb4-rpc.network.bloctopus.io",
+      "chain_id": 9250445
+    },
+    "blocktopus2": {
+      "rpc": "https://ec82cfa994764d8285fa0d42ba974cb4-rpc.network.bloctopus.io",
+      "chain_id": 9250445
+    }
+  },
+  "private_key": "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527",
+  "home_chain": "blocktopus1"
+} 
