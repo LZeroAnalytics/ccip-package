@@ -1,0 +1,21 @@
+name: "github.com/LZeroAnalytics/ccip-package"
+description: |
+  CCIP
+  =======
+  This Kurtosis package creates a CCIP network for cross chain token tranfers.
+
+  Prerequisites
+  -------------
+  - 
+
+  Configuration
+  -------------
+  To configure this package, you'll need to provide the following information:
+  - network
+    - `rpc`: The RPC URL for the blockchain to connect to
+    - `ws`: The WebSocket URL for the blockchain to connect to
+    - `chain_id`: The chain ID of the blockchain network
+    - `private_key`: The private key of the wallet to fund the VRF node operators
+    - `faucet`: The URL of the faucet to fund the VRF node operators
+  
+  - ccip
