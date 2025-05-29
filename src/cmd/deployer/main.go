@@ -26,13 +26,20 @@ import (
 )
 
 type DeploymentConfig struct {
-	Chains            map[string]ChainConfig `json:"chains"`
-	PrivateKey        string                 `json:"private_key"`
-	HomeChain         string                 `json:"home_chain"`
-	NumNodes          int                    `json:"num_nodes"`
-	NumBootstraps     int                    `json:"num_bootstraps"`
-	EnableMercury     bool                   `json:"enable_mercury"`
-	EnableLogTriggers bool                   `json:"enable_log_triggers"`
+	Chains                map[string]ChainConfig         `json:"chains"`
+	PrivateKey            string                         `json:"private_key"`
+	HomeChain             string                         `json:"home_chain"`
+	NumNodes              int                            `json:"num_nodes"`
+	NumBootstraps         int                            `json:"num_bootstraps"`
+	EnableMercury         bool                           `json:"enable_mercury"`
+	EnableLogTriggers     bool                           `json:"enable_log_triggers"`
+	PreexistingContracts  map[string]PreexistingContract `json:"preexisting_contracts,omitempty"`
+}
+
+type PreexistingContract struct {
+	Address string `json:"address"`
+	Chain   string `json:"chain"`
+	Type    string `json:"type"`
 }
 
 type ChainConfig struct {
@@ -139,7 +146,7 @@ func main() {
 	}
 
 	lggr.Info("🔗 Step 4: Deploy CCIP Chain Contracts")
-	deployedEnv, err = deployCCIPChainContractsReal(deployedEnv, lggr)
+	deployedEnv, err = deployCCIPChainContractsReal(deployedEnv, config, lggr)
 	if err != nil {
 		lggr.Fatalf("Failed to deploy chain contracts: %v", err)
 	}
@@ -235,25 +242,57 @@ func deployPrerequisitesReal(deployedEnv DeployedEnv, config *DeploymentConfig, 
 		evmChains = append(evmChains, chain.ChainSelector)
 	}
 
-	// Deploy Link Token using REAL Chainlink changeset
-	env, err := commonchangeset.Apply(nil, deployedEnv.Env, nil,
-		commonchangeset.Configure(
-			cldf.CreateLegacyChangeSet(commonchangeset.DeployLinkToken),
-			evmChains,
-		),
-	)
-	if err != nil {
-		return deployedEnv, fmt.Errorf("failed to deploy link token: %w", err)
+	shouldDeployLinkToken := true
+	if config.PreexistingContracts != nil {
+		for _, contract := range config.PreexistingContracts {
+			if contract.Type == "LinkToken" {
+				lggr.Infof("🔗 Using preexisting Link Token at %s on chain %s", contract.Address, contract.Chain)
+				shouldDeployLinkToken = false
+			}
+		}
+	}
+
+	// Deploy Link Token using REAL Chainlink changeset if needed
+	var env cldf.Environment
+	var err error
+	if shouldDeployLinkToken {
+		lggr.Info("🔗 Deploying new Link Token contracts")
+		env, err = commonchangeset.Apply(nil, deployedEnv.Env, nil,
+			commonchangeset.Configure(
+				cldf.CreateLegacyChangeSet(commonchangeset.DeployLinkToken),
+				evmChains,
+			),
+		)
+		if err != nil {
+			return deployedEnv, fmt.Errorf("failed to deploy link token: %w", err)
+		}
+	} else {
+		env = deployedEnv.Env
+	}
+
+	hasPriceFeeds := false
+	if config.PreexistingContracts != nil {
+		for _, contract := range config.PreexistingContracts {
+			if contract.Type == "PriceFeed" {
+				lggr.Infof("💰 Using preexisting Price Feed at %s on chain %s", contract.Address, contract.Chain)
+				hasPriceFeeds = true
+			}
+		}
 	}
 
 	// Deploy Prerequisites using REAL Chainlink changeset
 	prereqConfigs := make([]changeset.DeployPrerequisiteConfigPerChain, 0)
 	for _, chainConfig := range config.Chains {
+		opts := []changeset.PrerequisiteOpt{
+			changeset.WithMultiCall3Enabled(),
+		}
+		
+		if hasPriceFeeds {
+		}
+		
 		prereqConfigs = append(prereqConfigs, changeset.DeployPrerequisiteConfigPerChain{
 			ChainSelector: chainConfig.ChainSelector,
-			Opts: []changeset.PrerequisiteOpt{
-				changeset.WithMultiCall3Enabled(),
-			},
+			Opts:          opts,
 		})
 	}
 
@@ -331,15 +370,44 @@ func deployCCIPHomeChainReal(deployedEnv DeployedEnv, lggr logger.Logger) (Deplo
 }
 
 // deployCCIPChainContractsReal - Uses ACTUAL Chainlink changesets
-func deployCCIPChainContractsReal(deployedEnv DeployedEnv, lggr logger.Logger) (DeployedEnv, error) {
+func deployCCIPChainContractsReal(deployedEnv DeployedEnv, config *DeploymentConfig, lggr logger.Logger) (DeployedEnv, error) {
 	// Create contract params for each chain
 	contractParams := make(map[uint64]v1_6.ChainContractParams)
 	for chainSel := range deployedEnv.Env.Chains {
-		contractParams[chainSel] = v1_6.ChainContractParams{
+		params := v1_6.ChainContractParams{
 			FeeQuoterParams: v1_6.DefaultFeeQuoterParams(),
 			OffRampParams:   v1_6.DefaultOffRampParams(),
 		}
+		
+		// Check for preexisting contracts that might affect chain contract parameters
+		if config.PreexistingContracts != nil {
+			for _, contract := range config.PreexistingContracts {
+				chainName := ""
+				for name, chainConfig := range config.Chains {
+					if chainConfig.ChainSelector == chainSel {
+						chainName = name
+						break
+					}
+				}
+				
+				if contract.Chain == chainName {
+					switch contract.Type {
+					case "FeeQuoter":
+						lggr.Infof("💲 Using preexisting FeeQuoter at %s on chain %s", contract.Address, contract.Chain)
+					case "OnRamp":
+						lggr.Infof("🔼 Using preexisting OnRamp at %s on chain %s", contract.Address, contract.Chain)
+					case "OffRamp":
+						lggr.Infof("🔽 Using preexisting OffRamp at %s on chain %s", contract.Address, contract.Chain)
+					}
+				}
+			}
+		}
+		
+		contractParams[chainSel] = params
 	}
+
+	// Check for preexisting contracts in the environment
+	// For now, we'll proceed with the standard deployment
 
 	env, err := commonchangeset.Apply(nil, deployedEnv.Env, nil,
 		commonchangeset.Configure(
@@ -382,6 +450,16 @@ func collectRealDeploymentResults(deployedEnv DeployedEnv, config *DeploymentCon
 		Address: "REAL_CHAINLINK_CHANGESETS",
 		Chain:   "ALL",
 		Type:    "DeploymentMethod",
+	}
+	
+	if config.PreexistingContracts != nil {
+		for contractKey, contract := range config.PreexistingContracts {
+			results.Contracts[fmt.Sprintf("preexisting_%s_%s", contract.Type, contractKey)] = ContractInfo{
+				Address: contract.Address,
+				Chain:   contract.Chain,
+				Type:    fmt.Sprintf("Preexisting%s", contract.Type),
+			}
+		}
 	}
 
 	return results

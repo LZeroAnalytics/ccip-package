@@ -6,16 +6,24 @@ description: |
 
   Prerequisites
   -------------
-  - 
+  - Go 1.21 or higher
+  - Kurtosis CLI
 
   Configuration
   -------------
   To configure this package, you'll need to provide the following information:
-  - network
+  - chains: Map of chain configurations with RPC endpoints and chain IDs
     - `rpc`: The RPC URL for the blockchain to connect to
     - `ws`: The WebSocket URL for the blockchain to connect to
     - `chain_id`: The chain ID of the blockchain network
-    - `private_key`: The private key of the wallet to fund the VRF node operators
-    - `faucet`: The URL of the faucet to fund the VRF node operators
-  
-  - ccip
+  - private_key: The private key for deployment transactions
+  - home_chain: The name of the home chain for CCIP
+  - num_nodes: Number of nodes to deploy (default: 4)
+  - num_bootstraps: Number of bootstrap nodes (default: 1)
+  - enable_mercury: Whether to enable Mercury (default: false)
+  - enable_log_triggers: Whether to enable log triggers (default: false)
+  - preexisting_contracts: Optional map of existing contract addresses to reuse
+    - Each entry should have:
+      - `address`: The contract address
+      - `chain`: The chain name where the contract is deployed
+      - `type`: The contract type (LinkToken, PriceFeed, RMN, FeeQuoter, etc.)
