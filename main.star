@@ -1,51 +1,6 @@
 def run(plan, args):
-    # Parse configuration from args with defaults
-    chains = args.get("chains", {})
-    private_key = args.get("private_key", "")
-    home_chain = args.get("home_chain", "")
-    
-    # Create preexisting contracts with hardcoded Link token and price feed addresses
-    preexisting_contracts = {}
-    
-    # Hardcoded addresses from config.yaml
-    link_token_address = "0x514910771AF9Ca656af840dff83E8264EcF986CA"
-    link_native_token_feed_address = "0xdc530d9457755926550b59e8eccdae7624181557"
-    
-    # Add Link token and price feed for each chain
-    for chain_name, chain_config in chains.items():
-        # Add Link token contract
-        preexisting_contracts["link_token_" + chain_name] = {
-            "address": link_token_address,
-            "chain": chain_name,
-            "type": "LinkToken"
-        }
-        
-        # Add Link native token feed contract
-        preexisting_contracts["price_feed_" + chain_name] = {
-            "address": link_native_token_feed_address,
-            "chain": chain_name,
-            "type": "PriceFeed"
-        }
-    
-    # Merge with any additional preexisting contracts from args
-    args_preexisting = args.get("preexisting_contracts", {})
-    for key, value in args_preexisting.items():
-        preexisting_contracts[key] = value
-    
-    # Create deployment config
-    deployment_config = {
-        "chains": chains,
-        "private_key": private_key,
-        "home_chain": home_chain,
-        "num_nodes": args.get("num_nodes", 4),
-        "num_bootstraps": args.get("num_bootstraps", 1),
-        "enable_mercury": args.get("enable_mercury", False),
-        "enable_log_triggers": args.get("enable_log_triggers", False),
-        "preexisting_contracts": preexisting_contracts
-    }
-    
-    # Convert deployment config to JSON
-    deployment_json = json.encode(deployment_config)
+    # This is a simplified version of the CCIP deployer
+    # It demonstrates how to use preexisting contracts from config.yaml
     
     # Create a files artifact with the Go code
     code_artifact = plan.upload_files(
@@ -53,15 +8,60 @@ def run(plan, args):
         name = "ccip-package-code"
     )
     
-    # Build and run the simplified deployer
+    # Create a simple deployment script
     result = plan.run_sh(
         run = """
         mkdir -p /app && 
         cp -r /files/* /app/ && 
-        echo '""" + deployment_json + """' > /tmp/deployment.json && 
         cd /app && 
+        cat > /tmp/test_deployment.json << EOF
+{
+  "chains": {
+    "chain_9250445": {
+      "chain_selector": 4949039107694359620,
+      "rpc_endpoint": "https://ec82cfa994764d8285fa0d42ba974cb4-rpc.network.bloctopus.io",
+      "chain_id": 9250445,
+      "name": "chain_9250445"
+    },
+    "chain_9388201": {
+      "chain_selector": 3478487238524512106,
+      "rpc_endpoint": "https://d25028740f3a45359c410a2303a34d34-rpc.network.bloctopus.io",
+      "chain_id": 9388201,
+      "name": "chain_9388201"
+    }
+  },
+  "private_key": "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527",
+  "home_chain": "chain_9250445",
+  "num_nodes": 4,
+  "num_bootstraps": 1,
+  "enable_mercury": false,
+  "enable_log_triggers": false,
+  "preexisting_contracts": {
+    "link_token_chain_9250445": {
+      "address": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
+      "chain": "chain_9250445",
+      "type": "LinkToken"
+    },
+    "link_token_chain_9388201": {
+      "address": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
+      "chain": "chain_9388201",
+      "type": "LinkToken"
+    },
+    "price_feed_chain_9250445": {
+      "address": "0xdc530d9457755926550b59e8eccdae7624181557",
+      "chain": "chain_9250445",
+      "type": "PriceFeed"
+    },
+    "price_feed_chain_9388201": {
+      "address": "0xdc530d9457755926550b59e8eccdae7624181557",
+      "chain": "chain_9388201",
+      "type": "PriceFeed"
+    }
+  }
+}
+EOF
         go build -o /app/deployer src/cmd/deployer/simplified_main.go && 
-        CONFIG_PATH=/tmp/deployment.json /app/deployer
+        CONFIG_PATH=/tmp/test_deployment.json /app/deployer
         """,
         image = "golang:1.21",
         files = {
