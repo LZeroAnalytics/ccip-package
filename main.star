@@ -60,5 +60,3 @@ def run(plan, args):
     
     # Return the service
     return service
-    
-    return go_run_result
