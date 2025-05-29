@@ -46,18 +46,9 @@ def run(plan, args):
     # Convert deployment config to JSON
     deployment_json = json.encode(deployment_config)
     
-    # Create a temporary file artifact
-    deployment_file = plan.write_file(
-        name = "deployment.json",
-        contents = deployment_json
-    )
-    
-    # Build and run the Go deployer
+    # Use echo to create the deployment.json file in the container
     go_run_result = plan.run_sh(
-        run = "cd /app && go build -o deployer src/cmd/deployer/main.go && CONFIG_PATH=/tmp/deployment.json ./deployer",
-        files = {
-            "/tmp/deployment.json": deployment_file
-        },
+        run = "echo '" + deployment_json + "' > /tmp/deployment.json && cd /app && go build -o deployer src/cmd/deployer/main.go && CONFIG_PATH=/tmp/deployment.json ./deployer",
         image = "golang:1.21"
     )
     
