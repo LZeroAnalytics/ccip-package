@@ -8,23 +8,25 @@ def run(plan, args):
     # These are the addresses provided in config.yaml
     preexisting_contracts = {}
     
+    # Hardcoded addresses from config.yaml
+    link_token_address = "0x514910771AF9Ca656af840dff83E8264EcF986CA"
+    link_native_token_feed_address = "0xdc530d9457755926550b59e8eccdae7624181557"
+    
     # Add Link token and price feed for each chain
     for chain_name, chain_config in chains.items():
-        chain_id = str(chain_config.get("chain_id", ""))
-        if chain_id:
-            # Add Link token contract
-            preexisting_contracts["link_token_" + chain_name] = {
-                "address": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
-                "chain": chain_name,
-                "type": "LinkToken"
-            }
-            
-            # Add Link native token feed contract
-            preexisting_contracts["price_feed_" + chain_name] = {
-                "address": "0xdc530d9457755926550b59e8eccdae7624181557",
-                "chain": chain_name,
-                "type": "PriceFeed"
-            }
+        # Add Link token contract
+        preexisting_contracts["link_token_" + chain_name] = {
+            "address": link_token_address,
+            "chain": chain_name,
+            "type": "LinkToken"
+        }
+        
+        # Add Link native token feed contract
+        preexisting_contracts["price_feed_" + chain_name] = {
+            "address": link_native_token_feed_address,
+            "chain": chain_name,
+            "type": "PriceFeed"
+        }
     
     # Merge with any additional preexisting contracts from args
     args_preexisting = args.get("preexisting_contracts", {})
