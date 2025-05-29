@@ -48,7 +48,7 @@ def run(plan, args):
     
     # Use echo to create the deployment.json file in the container
     go_run_result = plan.run_sh(
-        run = "echo '" + deployment_json + "' > /tmp/deployment.json && cd /app && go build -o deployer src/cmd/deployer/main.go && CONFIG_PATH=/tmp/deployment.json ./deployer",
+        run = "echo '" + deployment_json + "' > /tmp/deployment.json && mkdir -p /tmp/app && cd /tmp/app && go build -o deployer /kurtosis-package-root/src/cmd/deployer/main.go && CONFIG_PATH=/tmp/deployment.json ./deployer",
         image = "golang:1.21"
     )
     
