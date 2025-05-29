@@ -57,8 +57,7 @@ def run(plan, args):
     go_run_result = plan.run_sh(
         run = "cd /app && go build -o deployer src/cmd/deployer/main.go && CONFIG_PATH=/tmp/deployment.json ./deployer",
         files = {
-            "/tmp/deployment.json": config_file.files["deployment.json"],
-            "/app/config.yaml": config_yaml
+            "/tmp/deployment.json": config_file.files["deployment.json"]
         },
         image = "golang:1.21"
     )
