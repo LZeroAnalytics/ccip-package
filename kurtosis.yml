@@ -27,3 +27,14 @@ description: |
       - `address`: The contract address
       - `chain`: The chain name where the contract is deployed
       - `type`: The contract type (LinkToken, PriceFeed, RMN, FeeQuoter, etc.)
+  
+  Preexisting Contracts
+  -------------
+  The package will automatically use Link token and price feed addresses from config.yaml if they are provided in the following format:
+  ```yaml
+  networks:
+    - chain_id: "9250445"
+      link_addresses:
+        link_token_address: "0x514910771AF9Ca656af840dff83E8264EcF986CA"
+        link_native_token_feed_address: "0xdc530d9457755926550b59e8eccdae7624181557"
+  ```
