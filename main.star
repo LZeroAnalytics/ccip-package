@@ -44,11 +44,11 @@ def run(plan, args):
     # Create preexisting contracts from parsed networks
     for network in networks:
         if "chain_id" in network and "link_addresses" in network:
-            chain_name = f"chain_{network['chain_id']}"
+            chain_name = "chain_" + network['chain_id']
             
             # Add Link token contract
             if "link_token_address" in network["link_addresses"]:
-                preexisting_contracts[f"link_token_{chain_name}"] = {
+                preexisting_contracts["link_token_" + chain_name] = {
                     "address": network["link_addresses"]["link_token_address"],
                     "chain": chain_name,
                     "type": "LinkToken"
@@ -56,7 +56,7 @@ def run(plan, args):
             
             # Add Link native token feed contract
             if "link_native_token_feed_address" in network["link_addresses"]:
-                preexisting_contracts[f"price_feed_{chain_name}"] = {
+                preexisting_contracts["price_feed_" + chain_name] = {
                     "address": network["link_addresses"]["link_native_token_feed_address"],
                     "chain": chain_name,
                     "type": "PriceFeed"
