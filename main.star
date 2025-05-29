@@ -43,21 +43,20 @@ def run(plan, args):
         "preexisting_contracts": preexisting_contracts
     }
     
-    # Add config file to the deployment
-    config_file = plan.render_templates(
-        config = {
-            "deployment.json": struct(
-                template = json.encode(deployment_config),
-                data = {}
-            )
-        }
+    # Convert deployment config to JSON
+    deployment_json = json.encode(deployment_config)
+    
+    # Create a temporary file artifact
+    deployment_file = plan.write_file(
+        name = "deployment.json",
+        contents = deployment_json
     )
     
     # Build and run the Go deployer
     go_run_result = plan.run_sh(
         run = "cd /app && go build -o deployer src/cmd/deployer/main.go && CONFIG_PATH=/tmp/deployment.json ./deployer",
         files = {
-            "/tmp/deployment.json": config_file.files["deployment.json"]
+            "/tmp/deployment.json": deployment_file
         },
         image = "golang:1.21"
     )
