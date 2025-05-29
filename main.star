@@ -46,10 +46,19 @@ def run(plan, args):
     # Convert deployment config to JSON
     deployment_json = json.encode(deployment_config)
     
-    # Use a simpler approach with run_sh
+    # Create a files artifact with the Go code
+    code_artifact = plan.upload_files(
+        src = ".",
+        name = "ccip-package-code"
+    )
+    
+    # Run the Go code with the deployment configuration
     result = plan.run_sh(
-        run = "echo '" + deployment_json + "' > /tmp/deployment.json && echo 'CCIP deployment would run here with the following config:' && cat /tmp/deployment.json",
-        image = "golang:1.21"
+        run = "mkdir -p /app && cp -r /files/* /app/ && cd /app && echo '" + deployment_json + "' > /tmp/deployment.json && go mod download && go build -o /tmp/deployer src/cmd/deployer/main.go && CONFIG_PATH=/tmp/deployment.json /tmp/deployer",
+        image = "golang:1.21",
+        files = {
+            "/files": code_artifact
+        }
     )
     
     # Return the result
