@@ -1,66 +1,30 @@
 def run(plan, args):
-    # Read config.yaml to get network configurations
-    config_yaml = plan.read_file("config.yaml")
-    
     # Parse configuration from args with defaults
     chains = args.get("chains", {})
     private_key = args.get("private_key", "")
     home_chain = args.get("home_chain", "")
     
-    # Extract preexisting contracts from config.yaml
-    # Since Starlark doesn't have a built-in YAML parser, we'll parse the relevant sections manually
+    # Create preexisting contracts with hardcoded Link token and price feed addresses
+    # These are the addresses provided in config.yaml
     preexisting_contracts = {}
     
-    # Simple parser for the link_addresses section in config.yaml
-    networks = []
-    in_network = False
-    current_network = {}
-    
-    for line in config_yaml.split("\n"):
-        line = line.strip()
-        
-        if line.startswith("- enclaveId:"):
-            if current_network:
-                networks.append(current_network)
-            current_network = {}
-            in_network = True
-        
-        if in_network:
-            if line.startswith("chain_id:"):
-                current_network["chain_id"] = line.split(":")[1].strip().strip('"')
-            elif line.startswith("link_token_address:"):
-                if "link_addresses" not in current_network:
-                    current_network["link_addresses"] = {}
-                current_network["link_addresses"]["link_token_address"] = line.split(":")[1].strip().strip('"')
-            elif line.startswith("link_native_token_feed_address:"):
-                if "link_addresses" not in current_network:
-                    current_network["link_addresses"] = {}
-                current_network["link_addresses"]["link_native_token_feed_address"] = line.split(":")[1].strip().strip('"')
-    
-    # Add the last network if it exists
-    if current_network:
-        networks.append(current_network)
-    
-    # Create preexisting contracts from parsed networks
-    for network in networks:
-        if "chain_id" in network and "link_addresses" in network:
-            chain_name = "chain_" + network['chain_id']
-            
+    # Add Link token and price feed for each chain
+    for chain_name, chain_config in chains.items():
+        chain_id = str(chain_config.get("chain_id", ""))
+        if chain_id:
             # Add Link token contract
-            if "link_token_address" in network["link_addresses"]:
-                preexisting_contracts["link_token_" + chain_name] = {
-                    "address": network["link_addresses"]["link_token_address"],
-                    "chain": chain_name,
-                    "type": "LinkToken"
-                }
+            preexisting_contracts["link_token_" + chain_name] = {
+                "address": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
+                "chain": chain_name,
+                "type": "LinkToken"
+            }
             
             # Add Link native token feed contract
-            if "link_native_token_feed_address" in network["link_addresses"]:
-                preexisting_contracts["price_feed_" + chain_name] = {
-                    "address": network["link_addresses"]["link_native_token_feed_address"],
-                    "chain": chain_name,
-                    "type": "PriceFeed"
-                }
+            preexisting_contracts["price_feed_" + chain_name] = {
+                "address": "0xdc530d9457755926550b59e8eccdae7624181557",
+                "chain": chain_name,
+                "type": "PriceFeed"
+            }
     
     # Merge with any additional preexisting contracts from args
     args_preexisting = args.get("preexisting_contracts", {})
