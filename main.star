@@ -55,7 +55,7 @@ def run(plan, args):
     # Run the Go code with the deployment configuration
     result = plan.run_sh(
         run = "mkdir -p /app && cp -r /files/* /app/ && echo '" + deployment_json + "' > /tmp/deployment.json && cd /app/src && go mod tidy && go build -o /tmp/deployer ./cmd/deployer/main.go && CONFIG_PATH=/tmp/deployment.json /tmp/deployer",
-        image = "golang:1.21",
+        image = "golang:1.24",
         files = {
             "/files": code_artifact
         }
