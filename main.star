@@ -46,10 +46,19 @@ def run(plan, args):
     # Convert deployment config to JSON
     deployment_json = json.encode(deployment_config)
     
-    # Use echo to create the deployment.json file in the container
-    go_run_result = plan.run_sh(
-        run = "echo '" + deployment_json + "' > /tmp/deployment.json && cd /kurtosis-package-root && go mod download && go build -o /tmp/deployer src/cmd/deployer/main.go && CONFIG_PATH=/tmp/deployment.json /tmp/deployer",
-        image = "golang:1.21"
+    # Create a service with the Go code
+    service = plan.add_service(
+        name = "ccip-deployer",
+        config = ServiceConfig(
+            image = "golang:1.21",
+            files = {
+                "/app": "."
+            },
+            entrypoint = ["/bin/sh", "-c", "echo '" + deployment_json + "' > /tmp/deployment.json && cd /app && go mod download && go build -o /tmp/deployer src/cmd/deployer/main.go && CONFIG_PATH=/tmp/deployment.json /tmp/deployer"]
+        )
     )
+    
+    # Return the service
+    return service
     
     return go_run_result
