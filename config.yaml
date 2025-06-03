@@ -1,9 +1,0 @@
-network:
-  type: "ethereum"
-  rpc: http://host.docker.internal:55002
-  ws: ws://host.docker.internal:55003
-  chain_id: "3151908"
-  private_key: "78ea40bcc78c5ad26a1c4e721f17308ab151960f34f9a085c9ac141d38ebe4ac"
-  faucet: "http://host.docker.internal:55041"
-
-ccip:
