@@ -13,6 +13,8 @@ import (
 	"github.com/smartcontractkit/chainlink/deployment/environment/devenv"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 	"gopkg.in/yaml.v3"
+
+	clclient "github.com/smartcontractkit/chainlink/deployment/environment/nodeclient"
 )
 
 // Config represents the deployment configuration
@@ -44,6 +46,56 @@ type Config struct {
 	} `yaml:"deployment"`
 
 	ExistingContracts map[string]string `yaml:"existing_contracts"`
+
+	Chainlink struct {
+		Nodes []NodeInfoYAML `yaml:"nodes"`
+	} `yaml:"chainlink"`
+}
+
+// NodeInfoConfig represents node configuration that can be loaded from YAML
+type NodeInfoConfig struct {
+	Nodes []NodeInfoYAML `yaml:"nodes"`
+}
+
+// NodeInfoYAML maps directly to devenv.NodeInfo with user-friendly YAML field names
+type NodeInfoYAML struct {
+	Name            string              `yaml:"name"`
+	ChainlinkConfig ChainlinkConfigYAML `yaml:"chainlink_config"`
+	P2PPort         string              `yaml:"p2p_port"`
+	IsBootstrap     bool                `yaml:"is_bootstrap"`
+	AdminAddr       string              `yaml:"admin_addr"`
+	MultiAddr       string              `yaml:"multi_addr"`
+	Labels          map[string]string   `yaml:"labels"`
+	ContainerName   string              `yaml:"container_name,omitempty"`
+}
+
+// ChainlinkConfigYAML maps to clclient.ChainlinkConfig with YAML tags
+type ChainlinkConfigYAML struct {
+	URL        string            `yaml:"url"`
+	Email      string            `yaml:"email"`
+	Password   string            `yaml:"password"`
+	InternalIP string            `yaml:"internal_ip,omitempty"`
+	Headers    map[string]string `yaml:"headers,omitempty"`
+}
+
+// ToDevenvNodeInfo converts NodeInfoYAML to devenv.NodeInfo
+func (n NodeInfoYAML) ToDevenvNodeInfo() devenv.NodeInfo {
+	return devenv.NodeInfo{
+		Name: n.Name,
+		CLConfig: clclient.ChainlinkConfig{
+			URL:        n.ChainlinkConfig.URL,
+			Email:      n.ChainlinkConfig.Email,
+			Password:   n.ChainlinkConfig.Password,
+			InternalIP: n.ChainlinkConfig.InternalIP,
+			Headers:    n.ChainlinkConfig.Headers,
+		},
+		P2PPort:       n.P2PPort,
+		IsBootstrap:   n.IsBootstrap,
+		AdminAddr:     n.AdminAddr,
+		MultiAddr:     n.MultiAddr,
+		Labels:        n.Labels,
+		ContainerName: n.ContainerName,
+	}
 }
 
 func main() {
@@ -72,8 +124,15 @@ func main() {
 	fmt.Printf("📊 Feed Chain: %s (ID: %d)\n", config.FeedChain.Name, config.FeedChain.ChainID)
 	fmt.Printf("🔗 Additional Chains: %d\n", len(config.Chains))
 
-	// Build environment config
-	envConfig := buildEnvironmentConfig(config)
+	nodeInfos := make([]devenv.NodeInfo, len(config.Chainlink.Nodes))
+	for i, node := range config.Chainlink.Nodes {
+		nodeInfos[i] = node.ToDevenvNodeInfo()
+	}
+
+	log.Printf("🎯 Loaded %d nodes from config", len(nodeInfos))
+
+	// Build environment config with NodeInfo
+	envConfig := buildEnvironmentConfig(config, nodeInfos)
 
 	// Calculate chain selectors
 	homeChainSel := calculateChainSelector(uint64(config.HomeChain.ChainID))
@@ -126,7 +185,7 @@ func loadConfig(path string) (*Config, error) {
 	return &config, nil
 }
 
-func buildEnvironmentConfig(config *Config) devenv.EnvironmentConfig {
+func buildEnvironmentConfig(config *Config, nodeInfos []devenv.NodeInfo) devenv.EnvironmentConfig {
 	var chains []devenv.ChainConfig
 
 	// Add home chain
@@ -187,9 +246,23 @@ func buildEnvironmentConfig(config *Config) devenv.EnvironmentConfig {
 		}
 	}
 
+	// Get JD configuration from environment
+	jdGRPC := os.Getenv("JD_GRPC_URL")
+	if jdGRPC == "" {
+		jdGRPC = "localhost:50051"
+	}
+	jdWSRPC := os.Getenv("JD_WSRPC_URL")
+	if jdWSRPC == "" {
+		jdWSRPC = "ws://localhost:50051"
+	}
+
 	return devenv.EnvironmentConfig{
-		Chains:   chains,
-		JDConfig: devenv.JDConfig{}, // Empty JD config for basic deployment
+		Chains: chains,
+		JDConfig: devenv.JDConfig{
+			GRPC:     jdGRPC,
+			WSRPC:    jdWSRPC,
+			NodeInfo: nodeInfos,
+		},
 	}
 }
 
@@ -205,7 +278,7 @@ func printDeploymentSummary(output crib.DeployCCIPOutput, capRegistry deployment
 	fmt.Println(strings.Repeat("=", 50))
 
 	if len(output.NodeIDs) > 0 {
-		fmt.Printf("🔗 Deployed Nodes: %d\n", len(output.NodeIDs))
+		fmt.Printf(" Deployed Nodes: %d\n", len(output.NodeIDs))
 		for i, nodeID := range output.NodeIDs {
 			fmt.Printf("   - Node %d: %s\n", i+1, nodeID)
 		}

@@ -1,5 +1,5 @@
 [submodule "chainlink"]
-	path = chainlink
+	path = ccip-deployer/chainlink
 	url = https://github.com/smartcontractkit/chainlink
 [submodule "ccip-deployer/chain-selectors"]
 	path = ccip-deployer/chain-selectors
