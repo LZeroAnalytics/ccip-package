@@ -15,19 +15,18 @@ import (
 	jobv1 "github.com/smartcontractkit/chainlink-protos/job-distributor/v1/job"
 	nodev1 "github.com/smartcontractkit/chainlink-protos/job-distributor/v1/node"
 
-	"github.com/job-distributor/internal/config"
 	"github.com/job-distributor/internal/server"
 )
 
 func main() {
-	cfg := config.Load()
+	port := getGrpcPort()
 
-	log.Printf("🚀 Starting Job Distributor on port %s", cfg.Port)
+	log.Printf("🚀 Starting Job Distributor on port %s", port)
 	// Create gRPC server
 	grpcServer := grpc.NewServer()
 
 	// Create our JD implementation
-	jdServer := server.NewJobDistributorServer(cfg)
+	jdServer := server.NewJobDistributorServer()
 
 	// Register services
 	jobv1.RegisterJobServiceServer(grpcServer, jdServer)
@@ -38,7 +37,7 @@ func main() {
 	reflection.Register(grpcServer)
 
 	// Start listening
-	lis, err := net.Listen("tcp", ":"+strconv.Itoa(cfg.Port))
+	lis, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
@@ -52,8 +51,17 @@ func main() {
 		grpcServer.GracefulStop()
 	}()
 
-	log.Printf("✅ Job Distributor ready on port %s", cfg.Port)
+	log.Printf("✅ Job Distributor ready on port %s", port)
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
+}
+
+func getGrpcPort() int {
+	if value := os.Getenv("JD_PORT"); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+	}
+	return 50051
 }

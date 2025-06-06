@@ -14,6 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 	"gopkg.in/yaml.v3"
 
+	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	clclient "github.com/smartcontractkit/chainlink/deployment/environment/nodeclient"
 )
 
@@ -41,8 +42,7 @@ type Config struct {
 	} `yaml:"chains"`
 
 	Deployment struct {
-		RMNEnabled      bool `yaml:"rmn_enabled"`
-		FreshDeployment bool `yaml:"fresh_deployment"`
+		RMNEnabled bool `yaml:"rmn_enabled"`
 	} `yaml:"deployment"`
 
 	ExistingContracts map[string]string `yaml:"existing_contracts"`
@@ -135,8 +135,14 @@ func main() {
 	envConfig := buildEnvironmentConfig(config, nodeInfos)
 
 	// Calculate chain selectors
-	homeChainSel := calculateChainSelector(uint64(config.HomeChain.ChainID))
-	feedChainSel := calculateChainSelector(uint64(config.FeedChain.ChainID))
+	homeChainSel, err := chain_selectors.SelectorFromChainId(uint64(config.HomeChain.ChainID))
+	if err != nil {
+		log.Fatalf("Failed to get home chain selector: %v", err)
+	}
+	feedChainSel, err := chain_selectors.SelectorFromChainId(uint64(config.FeedChain.ChainID))
+	if err != nil {
+		log.Fatalf("Failed to get feed chain selector: %v", err)
+	}
 
 	fmt.Printf("🆔 Home Chain Selector: %d\n", homeChainSel)
 	fmt.Printf("🆔 Feed Chain Selector: %d\n", feedChainSel)
@@ -264,13 +270,6 @@ func buildEnvironmentConfig(config *Config, nodeInfos []devenv.NodeInfo) devenv.
 			NodeInfo: nodeInfos,
 		},
 	}
-}
-
-// Simple chain selector calculation - replace with actual implementation
-func calculateChainSelector(chainID uint64) uint64 {
-	// This is a placeholder - use the actual chain-selectors library
-	// For testnets, you can use: chainID + 0x1000000000000000
-	return chainID + 0x1000000000000000
 }
 
 func printDeploymentSummary(output crib.DeployCCIPOutput, capRegistry deployment.CapabilityRegistryConfig) {

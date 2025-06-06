@@ -17,14 +17,12 @@ import (
 	"github.com/smartcontractkit/chainlink-protos/job-distributor/v1/shared/ptypes"
 
 	"github.com/job-distributor/internal/chainlink"
-	"github.com/job-distributor/internal/config"
 	"github.com/job-distributor/internal/storage"
 )
 
 // JobDistributorServer implements all the required gRPC interfaces
 type JobDistributorServer struct {
 	mu        sync.RWMutex
-	config    *config.Config
 	storage   *storage.Storage
 	chainlink *chainlink.ClientManager
 
@@ -35,9 +33,8 @@ type JobDistributorServer struct {
 }
 
 // NewJobDistributorServer creates a new Job Distributor server
-func NewJobDistributorServer(cfg *config.Config) *JobDistributorServer {
+func NewJobDistributorServer() *JobDistributorServer {
 	server := &JobDistributorServer{
-		config:    cfg,
 		storage:   storage.NewStorage(),
 		chainlink: chainlink.NewClientManager(), // ✅ Start with empty client manager
 	}

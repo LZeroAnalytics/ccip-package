@@ -1,0 +1,111 @@
+home_chain:
+  chain_id: 1174292
+  name: "ethereum-1"
+  rpc_url: "https://e30e9e0a78334338b05bdb70891824e2-rpc.network.bloctopus.io"
+  private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
+  
+feed_chain:
+  chain_id: 1174292
+  name: "ethereum-1"
+  rpc_url: "https://e30e9e0a78334338b05bdb70891824e2-rpc.network.bloctopus.io"
+  private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
+
+chains:
+  - chain_id: 9250445
+    name: "ethereum-2"
+    rpc_url: "https://ec82cfa994764d8285fa0d42ba974cb4-rpc.network.bloctopus.io"
+    private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
+
+# Deployment options
+deployment:
+  rmn_enabled: false
+
+existing_contracts:
+  link_token: "0x514910771AF9Ca656af840dff83E8264EcF986CA"
+  link_eth_feed: "0xdc530d9457755926550b59e8eccdae7624181557"
+  eth_usd_feed: "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+
+#chainlink:
+  #provide empty to spin up a new network, only provide if you wan to reuse your current infrastructure
+  #nodes:
+    # Bootstrap Node (required for DON)
+    #- name: "chainlink-bootstrap-1"
+    #  chainlink_config:
+    #    url: "http://chainlink-bootstrap:6688"
+    #    email: "admin@bootstrap.com"
+    #    password: "bootstrap_password"
+    #    # Optional fields:
+    #    # internal_ip: "10.0.0.1"                    # Used for bootstrap multiaddr if multi_addr not set
+    #    # headers:                                   # Custom HTTP headers for API calls
+    #    #   "X-API-Key": "your-api-key"
+    #    #   "Authorization": "Bearer token"
+    #  p2p_port: "6690"
+    #  is_bootstrap: true
+    #  admin_addr: "0x1000000000000000000000000000000000000000"
+    #  multi_addr: "127.0.0.1:6690"
+    #  container_name: "chainlink-bootstrap-1"
+    #  labels:
+    #    type: "bootstrap"           # Required by system (bootstrap/plugin)
+    #    environment: "devnet"       # For filtering (testnet/mainnet/devnet)
+    #    product: "ccip"   
+
+    # CCIP Plugin Nodes
+    #- name: "chainlink-node-1"
+    #  chainlink_config:
+    #    url: "http://chainlink-node-1:6688"
+    #    email: "admin@node1.com"
+    #    password: "node1_password"
+    #  p2p_port: "6691"
+    #  is_bootstrap: false
+    #  admin_addr: "0x2000000000000000000000000000000000000000"
+    #  multi_addr: "127.0.0.1:6691"
+    #  container_name: "chainlink-node-1"
+    #  labels:
+    #    type: "plugin"              # Required by system (bootstrap/plugin)
+    #    environment: "devnet"       # For filtering (testnet/mainnet/devnet)
+    #    product: "ccip"   
+
+    #- name: "chainlink-node-2"
+    #  chainlink_config:
+    #    url: "http://chainlink-node-2:6688"
+    #    email: "admin@node2.com"
+    #    password: "node2_password"
+    #  p2p_port: "6692"
+    #  is_bootstrap: false
+    #  admin_addr: "0x3000000000000000000000000000000000000000"
+    #  multi_addr: "127.0.0.1:6692"
+    #  container_name: "chainlink-node-2"
+    #  labels:
+    #    type: "plugin"              # Required by system (bootstrap/plugin)
+    #    environment: "devnet"       # For filtering (testnet/mainnet/devnet)
+    #    product: "ccip"   
+
+    #- name: "chainlink-node-3"
+    #  chainlink_config:
+    #    url: "http://chainlink-node-3:6688"
+    #    email: "admin@node3.com"
+    #    password: "node3_password"
+    #  p2p_port: "6693"
+    #  is_bootstrap: false
+    #  admin_addr: "0x4000000000000000000000000000000000000000"
+    #  multi_addr: "127.0.0.1:6693"
+    #  container_name: "chainlink-node-3"
+    #  labels:
+    #    type: "plugin"              # Required by system (bootstrap/plugin)
+    #    environment: "devnet"       # For filtering (testnet/mainnet/devnet)
+    #    product: "ccip"   
+
+    #- name: "chainlink-node-4"
+    #  chainlink_config:
+    #    url: "http://chainlink-node-4:6688"
+    #    email: "admin@node4.com"
+    #    password: "node4_password"
+    #  p2p_port: "6694"
+    #  is_bootstrap: false
+    #  admin_addr: "0x5000000000000000000000000000000000000000"
+    #  multi_addr: "127.0.0.1:6694"
+    #  container_name: "chainlink-node-4"
+    #  labels:
+    #    type: "plugin"              # Required by system (bootstrap/plugin)
+    #    environment: "devnet"       # For filtering (testnet/mainnet/devnet)
+    #    product: "ccip"

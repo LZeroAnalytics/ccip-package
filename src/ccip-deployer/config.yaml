@@ -18,8 +18,7 @@ chains:
 
 # Deployment options
 deployment:
-  rmn_enabled: true
-  fresh_deployment: true
+  rmn_enabled: false
 
 existing_contracts:
   link_token: "0x514910771AF9Ca656af840dff83E8264EcF986CA"
