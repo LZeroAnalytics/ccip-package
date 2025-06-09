@@ -8,13 +8,15 @@ import (
 	"strconv"
 	"strings"
 
+	"google.golang.org/grpc/credentials/insecure"
+	"gopkg.in/yaml.v3"
+
+	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink/deployment"
 	"github.com/smartcontractkit/chainlink/deployment/environment/crib"
 	"github.com/smartcontractkit/chainlink/deployment/environment/devenv"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
-	"gopkg.in/yaml.v3"
 
-	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	clclient "github.com/smartcontractkit/chainlink/deployment/environment/nodeclient"
 )
 
@@ -267,6 +269,7 @@ func buildEnvironmentConfig(config *Config, nodeInfos []devenv.NodeInfo) devenv.
 		JDConfig: devenv.JDConfig{
 			GRPC:     jdGRPC,
 			WSRPC:    jdWSRPC,
+			Creds:    insecure.NewCredentials(),
 			NodeInfo: nodeInfos,
 		},
 	}

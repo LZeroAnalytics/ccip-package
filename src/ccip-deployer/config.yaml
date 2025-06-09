@@ -1,13 +1,13 @@
 home_chain:
-  chain_id: 1174292
+  chain_id: 9215983
   name: "ethereum-1"
-  rpc_url: "https://e30e9e0a78334338b05bdb70891824e2-rpc.network.bloctopus.io"
+  rpc_url: "https://dbe86096b10d4900b782ceea78f86ca4-rpc.network.bloctopus.io"
   private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
   
 feed_chain:
-  chain_id: 1174292
+  chain_id: 9215983
   name: "ethereum-1"
-  rpc_url: "https://e30e9e0a78334338b05bdb70891824e2-rpc.network.bloctopus.io"
+  rpc_url: "https://dbe86096b10d4900b782ceea78f86ca4-rpc.network.bloctopus.io"
   private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
 
 chains:
@@ -28,11 +28,11 @@ existing_contracts:
 chainlink:
   nodes:
     # Bootstrap Node (required for DON)
-    - name: "chainlink-bootstrap-1"
+    - name: "chainlink-node-0"
       chainlink_config:
-        url: "http://chainlink-bootstrap:6688"
-        email: "admin@bootstrap.com"
-        password: "bootstrap_password"
+        url: "http://127.0.0.1:51580"
+        email: "admin@chain.link"
+        password: "Ku8Qp4xKq#GmK@fyNq7T"
         # Optional fields:
         # internal_ip: "10.0.0.1"                    # Used for bootstrap multiaddr if multi_addr not set
         # headers:                                   # Custom HTTP headers for API calls
@@ -40,9 +40,9 @@ chainlink:
         #   "Authorization": "Bearer token"
       p2p_port: "6690"
       is_bootstrap: true
-      admin_addr: "0x1000000000000000000000000000000000000000"
-      multi_addr: "127.0.0.1:6690"
-      container_name: "chainlink-bootstrap-1"
+      admin_addr: "0x04A5468970f95BDD852776ba9c797F6813a0A781"
+      multi_addr: "12D3KooWKei2e8PdCMgUJFX8SQB25EGCkjmvsQouZSQiH4vxN1D9@127.0.0.1:51581"
+      container_name: "chainlink-node-0--c6b6698ed5204d479275c42c81429159"
       labels:
         type: "bootstrap"           # Required by system (bootstrap/plugin)
         environment: "devnet"       # For filtering (testnet/mainnet/devnet)
@@ -51,13 +51,13 @@ chainlink:
     # CCIP Plugin Nodes
     - name: "chainlink-node-1"
       chainlink_config:
-        url: "http://chainlink-node-1:6688"
-        email: "admin@node1.com"
-        password: "node1_password"
-      p2p_port: "6691"
+        url: "http://127.0.0.1:51539"
+        email: "admin@chain.link"
+        password: "Ku8Qp4xKq#GmK@fyNq7T"
+      p2p_port: "6690"
       is_bootstrap: false
-      admin_addr: "0x2000000000000000000000000000000000000000"
-      multi_addr: "127.0.0.1:6691"
+      admin_addr: "0x4e08bD1209C96FfC89d5F25866e94E7403fF3248"
+      multi_addr: "12D3KooWKWwSKszqTZx3sgyCdbMmfdFEbZLEKPnmKssUWRUCnCRn@127.0.0.1:6691"
       container_name: "chainlink-node-1"
       labels:
         type: "plugin"              # Required by system (bootstrap/plugin)
@@ -66,13 +66,13 @@ chainlink:
 
     - name: "chainlink-node-2"
       chainlink_config:
-        url: "http://chainlink-node-2:6688"
-        email: "admin@node2.com"
-        password: "node2_password"
-      p2p_port: "6692"
+        url: "http://127.0.0.1:51543"
+        email: "admin@chain.link"
+        password: "Ku8Qp4xKq#GmK@fyNq7T"
+      p2p_port: "6690"
       is_bootstrap: false
-      admin_addr: "0x3000000000000000000000000000000000000000"
-      multi_addr: "127.0.0.1:6692"
+      admin_addr: "0x2a7a955822562Eb967dE1a0f06693971B2181bf6"
+      multi_addr: "12D3KooWRScu2E25XgkN1c4k6C2FZDoY8N2QYxQVwKsHnrk94r6e@127.0.0.1:51544"
       container_name: "chainlink-node-2"
       labels:
         type: "plugin"              # Required by system (bootstrap/plugin)
@@ -81,13 +81,13 @@ chainlink:
 
     - name: "chainlink-node-3"
       chainlink_config:
-        url: "http://chainlink-node-3:6688"
-        email: "admin@node3.com"
-        password: "node3_password"
-      p2p_port: "6693"
+        url: "http://127.0.0.1:51577"
+        email: "admin@chain.link"
+        password: "Ku8Qp4xKq#GmK@fyNq7T"
+      p2p_port: "6690"
       is_bootstrap: false
-      admin_addr: "0x4000000000000000000000000000000000000000"
-      multi_addr: "127.0.0.1:6693"
+      admin_addr: "0xC0819e59De2e96e68aFf2FbbED60D1437990295F"
+      multi_addr: "12D3KooWGPTzbM28JWutz278ZUmMhpsL3Vv2dKtApMiFZw3XaT4m@127.0.0.1:515778"
       container_name: "chainlink-node-3"
       labels:
         type: "plugin"              # Required by system (bootstrap/plugin)
@@ -96,19 +96,32 @@ chainlink:
 
     - name: "chainlink-node-4"
       chainlink_config:
-        url: "http://chainlink-node-4:6688"
-        email: "admin@node4.com"
-        password: "node4_password"
-      p2p_port: "6694"
+        url: "http://127.0.0.1:51541"
+        email: "admin@chain.link"
+        password: "Ku8Qp4xKq#GmK@fyNq7T"
+      p2p_port: "6690"
       is_bootstrap: false
-      admin_addr: "0x5000000000000000000000000000000000000000"
-      multi_addr: "127.0.0.1:6694"
+      admin_addr: "0x8BE8211C25751565d5f2d042FE0C3082F5C03883"
+      multi_addr: "12D3KooWDXHhCaKzxoxL9U4xUpDVhfp9mCF5b8dJuo6UWR2dV3XB@127.0.0.1:51542"
       container_name: "chainlink-node-4"
       labels:
         type: "plugin"              # Required by system (bootstrap/plugin)
         environment: "devnet"       # For filtering (testnet/mainnet/devnet)
         product: "ccip"   
-
+    - name: "chainlink-node-5"
+      chainlink_config:
+        url: "http://127.0.0.1:51537"
+        email: "admin@chain.link"
+        password: "Ku8Qp4xKq#GmK@fyNq7T"
+      p2p_port: "6690"
+      is_bootstrap: false
+      admin_addr: "0x08b7430e0da5CE8Cb06f208dD51b2Df7cb1CfCA4"
+      multi_addr: "12D3KooWLA5H7Tnb5v8TgeiWKbm3sH6ZGZZrNaA2d2iRL1H8khf4@127.0.0.1:51538"
+      container_name: "chainlink-node-5"
+      labels:
+        type: "plugin"              # Required by system (bootstrap/plugin)
+        environment: "devnet"       # For filtering (testnet/mainnet/devnet)
+        product: "ccip"  
 # Note: 
 # 1. Update URLs to match your actual node deployments
 # 2. Use real credentials and addresses

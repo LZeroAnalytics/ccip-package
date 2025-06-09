@@ -396,21 +396,130 @@ func (s *JobDistributorServer) RegisterNode(ctx context.Context, req *nodev1.Reg
 	}, nil
 }
 
-// Other node methods (placeholder implementations)
-func (s *JobDistributorServer) EnableNode(ctx context.Context, req *nodev1.EnableNodeRequest) (*nodev1.EnableNodeResponse, error) {
-	return &nodev1.EnableNodeResponse{}, nil
-}
-
-func (s *JobDistributorServer) DisableNode(ctx context.Context, req *nodev1.DisableNodeRequest) (*nodev1.DisableNodeResponse, error) {
-	return &nodev1.DisableNodeResponse{}, nil
-}
-
+// UpdateNode updates a node's information
 func (s *JobDistributorServer) UpdateNode(ctx context.Context, req *nodev1.UpdateNodeRequest) (*nodev1.UpdateNodeResponse, error) {
-	return &nodev1.UpdateNodeResponse{}, nil
+	log.Printf("🔄 UpdateNode called for node %s", req.Id)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Get existing node
+	existingNode := s.storage.GetNode(req.Id)
+	if existingNode == nil {
+		return nil, status.Errorf(codes.NotFound, "node %s not found", req.Id)
+	}
+
+	// Update node fields
+	updatedNode := &nodev1.Node{
+		Id:          req.Id,
+		Name:        req.Name,
+		PublicKey:   existingNode.PublicKey, // Keep original public key
+		Labels:      req.Labels,
+		IsConnected: existingNode.IsConnected,
+		IsEnabled:   existingNode.IsEnabled,
+		CreatedAt:   existingNode.CreatedAt,
+		UpdatedAt:   timestamppb.Now(),
+	}
+
+	// Store updated node
+	s.storage.StoreNode(updatedNode)
+
+	log.Printf("✅ Node %s updated successfully", req.Id)
+
+	return &nodev1.UpdateNodeResponse{
+		Node: updatedNode,
+	}, nil
 }
 
+// EnableNode enables a node
+func (s *JobDistributorServer) EnableNode(ctx context.Context, req *nodev1.EnableNodeRequest) (*nodev1.EnableNodeResponse, error) {
+	log.Printf("✅ EnableNode called for node %s", req.Id)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Get existing node
+	existingNode := s.storage.GetNode(req.Id)
+	if existingNode == nil {
+		return nil, status.Errorf(codes.NotFound, "node %s not found", req.Id)
+	}
+
+	// Enable the node
+	updatedNode := *existingNode
+	updatedNode.IsEnabled = true
+	updatedNode.UpdatedAt = timestamppb.Now()
+
+	s.storage.StoreNode(&updatedNode)
+
+	log.Printf("✅ Node %s enabled successfully", req.Id)
+
+	return &nodev1.EnableNodeResponse{
+		Node: &updatedNode,
+	}, nil
+}
+
+// DisableNode disables a node
+func (s *JobDistributorServer) DisableNode(ctx context.Context, req *nodev1.DisableNodeRequest) (*nodev1.DisableNodeResponse, error) {
+	log.Printf("❌ DisableNode called for node %s", req.Id)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Get existing node
+	existingNode := s.storage.GetNode(req.Id)
+	if existingNode == nil {
+		return nil, status.Errorf(codes.NotFound, "node %s not found", req.Id)
+	}
+
+	// Disable the node
+	updatedNode := *existingNode
+	updatedNode.IsEnabled = false
+	updatedNode.UpdatedAt = timestamppb.Now()
+
+	s.storage.StoreNode(&updatedNode)
+
+	log.Printf("❌ Node %s disabled successfully", req.Id)
+
+	return &nodev1.DisableNodeResponse{
+		Node: &updatedNode,
+	}, nil
+}
+
+// ListNodeChainConfigs returns chain configurations for nodes
 func (s *JobDistributorServer) ListNodeChainConfigs(ctx context.Context, req *nodev1.ListNodeChainConfigsRequest) (*nodev1.ListNodeChainConfigsResponse, error) {
-	return &nodev1.ListNodeChainConfigsResponse{}, nil
+	log.Printf("🔗 ListNodeChainConfigs called")
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var configs []*nodev1.ChainConfig
+
+	// Convert filter if provided
+	var nodeFilter *nodev1.ListNodesRequest_Filter
+	if req.Filter != nil && len(req.Filter.NodeIds) > 0 {
+		nodeFilter = &nodev1.ListNodesRequest_Filter{
+			Ids: req.Filter.NodeIds,
+		}
+	}
+
+	// Apply node filter if provided
+	nodes := s.storage.ListNodes(nodeFilter)
+
+	// Generate realistic chain configs for each enabled node
+	for _, node := range nodes {
+		if !node.IsEnabled {
+			continue // Skip disabled nodes
+		}
+
+		// Generate sample chain configs for this node
+		// In a real implementation, this would come from node configuration
+		sampleConfigs := s.generateSampleChainConfigs(node.Id)
+		configs = append(configs, sampleConfigs...)
+	}
+
+	return &nodev1.ListNodeChainConfigsResponse{
+		ChainConfigs: configs,
+	}, nil
 }
 
 // =============================================================================
@@ -524,6 +633,75 @@ func (s *JobDistributorServer) deleteJobFromNode(ctx context.Context, jobID stri
 
 	log.Printf("✅ Job %s successfully deleted from node %s", jobID, job.NodeId)
 	return true
+}
+
+// generateSampleChainConfigs generates realistic chain configurations for a node
+func (s *JobDistributorServer) generateSampleChainConfigs(nodeID string) []*nodev1.ChainConfig {
+	// Sample chain configurations that match what's used in CCIP deployments
+	return []*nodev1.ChainConfig{
+		{
+			Chain: &nodev1.Chain{
+				Id:   "9215983",
+				Type: nodev1.ChainType_CHAIN_TYPE_EVM,
+			},
+			AccountAddress: "0x1234567890123456789012345678901234567890",
+			AdminAddress:   "0x0987654321098765432109876543210987654321",
+			NodeId:         nodeID,
+			Ocr2Config: &nodev1.OCR2Config{
+				Enabled:     true,
+				IsBootstrap: false,
+				Multiaddr:   fmt.Sprintf("/ip4/127.0.0.1/tcp/9000/p2p/node_%s", nodeID),
+				P2PKeyBundle: &nodev1.OCR2Config_P2PKeyBundle{
+					PeerId:    fmt.Sprintf("p2p_peer_%s", nodeID),
+					PublicKey: fmt.Sprintf("p2p_pubkey_%s", nodeID),
+				},
+				OcrKeyBundle: &nodev1.OCR2Config_OCRKeyBundle{
+					BundleId:              fmt.Sprintf("ocr2_key_%s", nodeID),
+					ConfigPublicKey:       fmt.Sprintf("config_pub_%s", nodeID),
+					OffchainPublicKey:     fmt.Sprintf("offchain_pub_%s", nodeID),
+					OnchainSigningAddress: "0x3456789012345678901234567890123456789012",
+				},
+				Plugins: &nodev1.OCR2Config_Plugins{
+					Commit:     true,
+					Execute:    true,
+					Median:     false,
+					Mercury:    false,
+					Rebalancer: false,
+				},
+			},
+		},
+		{
+			Chain: &nodev1.Chain{
+				Id:   "7298107",
+				Type: nodev1.ChainType_CHAIN_TYPE_EVM,
+			},
+			AccountAddress: "0x2345678901234567890123456789012345678901",
+			AdminAddress:   "0x1987654321098765432109876543210987654321",
+			NodeId:         nodeID,
+			Ocr2Config: &nodev1.OCR2Config{
+				Enabled:     true,
+				IsBootstrap: false,
+				Multiaddr:   fmt.Sprintf("/ip4/127.0.0.1/tcp/9001/p2p/node_%s", nodeID),
+				P2PKeyBundle: &nodev1.OCR2Config_P2PKeyBundle{
+					PeerId:    fmt.Sprintf("p2p_peer2_%s", nodeID),
+					PublicKey: fmt.Sprintf("p2p_pubkey2_%s", nodeID),
+				},
+				OcrKeyBundle: &nodev1.OCR2Config_OCRKeyBundle{
+					BundleId:              fmt.Sprintf("ocr2_key2_%s", nodeID),
+					ConfigPublicKey:       fmt.Sprintf("config_pub2_%s", nodeID),
+					OffchainPublicKey:     fmt.Sprintf("offchain_pub2_%s", nodeID),
+					OnchainSigningAddress: "0x4567890123456789012345678901234567890123",
+				},
+				Plugins: &nodev1.OCR2Config_Plugins{
+					Commit:     true,
+					Execute:    true,
+					Median:     false,
+					Mercury:    false,
+					Rebalancer: false,
+				},
+			},
+		},
+	}
 }
 
 // =============================================================================

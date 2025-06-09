@@ -1,12 +1,12 @@
 GO_SERVICE_NAME = "ccip-deployer"
-GO_IMAGE = "golang:1.24.3-alpine"  # Base Go image
+GO_IMAGE = "golang:1.24.2"  # Base Go image
 
-def run(plan, config_struct):
+def run(plan, config_struct, jd_url):
     """Deploy CCIP using proper render_templates with YAML template"""
     
     # Upload source code directly and config yaml
     go_source = plan.upload_files(".")
-    config_artifact = struct_to_yaml_template(config_struct)
+    config_artifact = struct_to_yaml_template(plan, config_struct)
     
     # Create service with base Go image
     go_service = plan.add_service(
@@ -18,14 +18,16 @@ def run(plan, config_struct):
                 "/app": go_source,  # Mount source code
                 "/config": config_artifact,  # Mount generated config
             },
+            env_vars = {
+                "JD_GRPC_URL": jd_url
+            }
         )
     )
     
-    # Build the Go application inside the container
     plan.exec(
         service_name = GO_SERVICE_NAME,
         recipe = ExecRecipe(
-            command = ["sh", "-c", "cd /app && go build -o /usr/local/bin/ccip-deployer ."]
+            command = ["sh", "-c", "cd /app && go mod tidy && go build -o /usr/local/bin/ccip-deployer ."]
         )
     )
     
@@ -33,14 +35,14 @@ def run(plan, config_struct):
     result = plan.exec(
         service_name = GO_SERVICE_NAME,
         recipe = ExecRecipe(
-            command = ["/usr/local/bin/ccip-deployer", "deploy", "/config/deploy.yaml"]
+            command = ["/usr/local/bin/ccip-deployer", "/config/deploy.yaml"]
         )
     )
     
     return result
 
-def struct_to_yaml_template(config_struct):
-        yaml_template = """home_chain:
+def struct_to_yaml_template(plan, config_struct):
+    yaml_template = """home_chain:
   chain_id: {{.home_chain.chain_id}}
   name: "{{.home_chain.name}}"
   rpc_url: "{{.home_chain.rpc_url}}"
@@ -117,5 +119,4 @@ def run_command(plan, args):
             command = ["/usr/local/bin/ccip-deployer"] + args
         )
     )
-    return result
-
+    return result 

@@ -1,19 +1,19 @@
 home_chain:
-  chain_id: 1174292
+  chain_id: 9215983
   name: "ethereum-1"
-  rpc_url: "https://e30e9e0a78334338b05bdb70891824e2-rpc.network.bloctopus.io"
+  rpc_url: "https://dbe86096b10d4900b782ceea78f86ca4-rpc.network.bloctopus.io"
   private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
   
 feed_chain:
-  chain_id: 1174292
+  chain_id: 9215983
   name: "ethereum-1"
-  rpc_url: "https://e30e9e0a78334338b05bdb70891824e2-rpc.network.bloctopus.io"
+  rpc_url: "https://dbe86096b10d4900b782ceea78f86ca4-rpc.network.bloctopus.io"
   private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
 
 chains:
-  - chain_id: 9250445
+  - chain_id: 7298107
     name: "ethereum-2"
-    rpc_url: "https://ec82cfa994764d8285fa0d42ba974cb4-rpc.network.bloctopus.io"
+    rpc_url: "https://46c01da3be654aecb16d662a4e9406a4-rpc.network.bloctopus.io"
     private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
 
 # Deployment options
