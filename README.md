@@ -39,10 +39,7 @@ The package returns a comprehensive deployment result:
         # ... same structure for each chain
       }
     }
-  },
-  "chainlink_nodes": [
-    # Array of 6 Chainlink node configurations
-  ]
+  }
 }
 ```
 
