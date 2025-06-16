@@ -1,0 +1,3 @@
+[submodule "src/hardhat-ccip-contracts"]
+	path = src/hardhat-ccip-contracts
+	url = https://github.com/LZeroAnalytics/hardhat-ccip-contracts.git

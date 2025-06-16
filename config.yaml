@@ -1,9 +1,23 @@
-network:
-  type: "ethereum"
-  rpc: http://host.docker.internal:55002
-  ws: ws://host.docker.internal:55003
-  chain_id: "3151908"
-  private_key: "78ea40bcc78c5ad26a1c4e721f17308ab151960f34f9a085c9ac141d38ebe4ac"
-  faucet: "http://host.docker.internal:55041"
-
-ccip:
+chains:
+  - chain_id: 9215983
+    chain_selector: #TODO
+    name: "ethereum-1"
+    rpc_url: "https://dbe86096b10d4900b782ceea78f86ca4-rpc.network.bloctopus.io"
+    private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
+    faucet: "https://faucet.chain.link/ethereum/mainnet"
+    existing_contracts:
+      link_token: "0x514910771AF9Ca656af840dff83E8264EcF986CA"
+      link_eth_feed: "0xdc530d9457755926550b59e8eccdae7624181557"
+      eth_usd_feed: "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+      weth9: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+  - chain_id: 7298107
+    chain_selector: #TODO
+    name: "ethereum-2"
+    rpc_url: "https://46c01da3be654aecb16d662a4e9406a4-rpc.network.bloctopus.io"
+    private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
+    faucet: "https://faucet.chain.link/ethereum/mainnet"
+    existing_contracts:
+      link_token: "0x514910771AF9Ca656af840dff83E8264EcF986CA"
+      link_eth_feed: "0xdc530d9457755926550b59e8eccdae7624181557"
+      eth_usd_feed: "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+      weth9: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
