@@ -2,9 +2,8 @@ chainlink_pkg = import_module("./src/chainlink-node-package/main.star")
 hardhat_package = import_module("github.com/LZeroAnalytics/hardhat-package/main.star")
 ocr = import_module("./src/chainlink-node-package/src/ocr/ocr.star")
 DON_NODES_COUNT = 6
-CHAINLINK_IMAGE = "fravlaca/chainlink:0.2.0"
-CCIP_UI_VERSION = "0.1.0"
-CCIP_UI_IMAGE = "fravlac/ccip-ui:{0}".format(CCIP_UI_VERSION)
+CHAINLINK_IMAGE = "fravlaca/chainlink:0.3.0"
+CCIP_UI_IMAGE = "fravlaca/ccip-ui:0.1.0"
 
 def run(plan, args = {}):
     config = args
@@ -16,7 +15,8 @@ def run(plan, args = {}):
         networks[chain["name"]] = {
             "rpc_url": chain["rpc_url"],
             "chain_id": chain["chain_id"],
-            "private_key": chain["private_key"]
+            "private_key": chain["private_key"],
+            "existing_contracts": chain["existing_contracts"]
         }
     hardhat_package.configure_networks(plan, networks)
 
@@ -38,20 +38,21 @@ def run(plan, args = {}):
             "eth_key": chainlink_pkg.node_utils.get_eth_key(plan, node_name)
         })
 
-    p2pBootstraperID = nodes_infos[0]["p2p_peer_id"] + "@" + deployed_nodes["chainlink-ccip-node-0"].ip_address + ":" + str(deployed_nodes["chainlink-ccip-node-0"].ports["p2p"].number)
-    ccip_jobs_result = _create_ccip_jobs(plan, nodes_infos, p2pBootstraperID) 
-
-    # Deploy and configure CCIP infrastructure
+    # Deploy and configure CCIP infrastructure FIRST
     chains_contracts = deploy_ccip_contracts_on_chains(plan, config, nodes_infos, home_chain_contracts)
     ccip_lanes_result = configure_ccip_lanes(plan, config, chains_contracts)
     config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos)
+
+    # Create CCIP jobs AFTER everything is configured
+    p2pBootstraperID = nodes_infos[0]["p2p_peer_id"] + "@" + deployed_nodes["chainlink-ccip-node-0"].ip_address + ":" + str(deployed_nodes["chainlink-ccip-node-0"].ports["p2p-cap"].number)
+    ccip_jobs_result = _create_ccip_jobs(plan, nodes_infos, p2pBootstraperID)
 
     contracts_addresses = struct(
         home_chain_contracts = home_chain_contracts,
         chains_contracts = chains_contracts
     )
 
-    spinup_ccip_ui(plan, contracts_addresses, config["chains"])
+    #spinup_ccip_ui(plan, contracts_addresses, config["chains"])
 
     return struct(
         contracts_addresses = struct(
@@ -288,6 +289,8 @@ def config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos
         }
         nodes_data.append(node_info)
         
+    ocr.init_ocr3_service(plan)
+
     # Setup OCR3 for each chain
     for chain_config in config["chains"]:
         chain_selector = chain_config["chain_selector"]
@@ -310,7 +313,8 @@ def config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos
             commit_ocr3_input["pluginType"] = "exec"
             exec_ocr3_result = ocr.generate_ocr3config(plan, commit_ocr3_input)
             
-            # Build nodes array with p2pId, signerKey, transmitterKey
+            signers = []
+            transmitters = []
             ocr3_nodes = []
             for i, node in enumerate(nodes_data):
                 ocr3_nodes.append({
@@ -318,7 +322,9 @@ def config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos
                     "signerKey": commit_ocr3_result["extract.signer_{}".format(i)],
                     "transmitterKey": commit_ocr3_result["extract.transmitter_{}".format(i)]
                 })
-            
+                signers.append(commit_ocr3_result["extract.signer_{}".format(i)])
+                transmitters.append(commit_ocr3_result["extract.transmitter_{}".format(i)])
+
             # Prepare parameters for TypeScript script
             setup_params = {
                 "homeChainSelector": str(home_chain_selector),
@@ -330,22 +336,25 @@ def config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos
                 "offRamp": chain_contracts.offRamp,
                 "rmnHome": home_chain_contracts.rmnHome,
                 "commitOCR3Config": {
-                    "signers": commit_ocr3_result["extract.signers_json"],
-                    "transmitters": commit_ocr3_result["extract.transmitters_json"],
+                    "signers": signers,           # Use direct array
+                    "transmitters": transmitters, # Use direct array
                     "f": commit_ocr3_result["extract.f"],
                     "offchainConfigVersion": commit_ocr3_result["extract.offchain_cfg_ver"],
                     "offchainConfig": commit_ocr3_result["extract.offchain_cfg"],
                     "nodes": ocr3_nodes
                 },
                 "execOCR3Config": {
-                    "signers": exec_ocr3_result["extract.signers_json"],
-                    "transmitters": exec_ocr3_result["extract.transmitters_json"],
+                    "signers": signers,             # Use direct array
+                    "transmitters": transmitters,   # Use direct array
                     "f": exec_ocr3_result["extract.f"],
                     "offchainConfigVersion": exec_ocr3_result["extract.offchain_cfg_ver"],
                     "offchainConfig": exec_ocr3_result["extract.offchain_cfg"],
                     "nodes": ocr3_nodes
                 }
             }
+
+            plan.print("setup_params: ")
+            plan.print(setup_params)
             
             # Run the TypeScript setup script
             hardhat_package.script(
@@ -357,15 +366,93 @@ def config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos
                 },
                 extraCmds = " | grep -A 100 DEPLOYMENT_JSON_BEGIN | grep -B 100 DEPLOYMENT_JSON_END | sed '/DEPLOYMENT_JSON_BEGIN/d' | sed '/DEPLOYMENT_JSON_END/d'"
             )
-            
-            plan.print("✅ OCR3 {} plugin configured for chain {}".format(plugin_type, chain_config["name"]))
-    
-    plan.print("✅ OCR3 configuration completed for all chains")
-
 
 def spinup_ccip_ui(plan, contracts_addresses, chains_config):
+    """Spins up the CCIP UI with dynamically generated network configuration"""
+    
+    # Prepare template data
+    networks = []
+    cct_tokens_input = [] # TODO: deploy CCT tokens (BnM and LnM examples)
+    cct_tokens = []
+    
+    for chain in chains_config:
+        chain_contracts = contracts_addresses.chains_contracts.get(chain["name"], {})
+        
+        # Build network
+        network = {
+            "ChainID": chain["chain_id"],
+            "Key": chain["name"],
+            "Name": chain.get("display_name", chain["name"].title()),
+            "NativeCurrency": {
+                "Name": chain.get("native_currency_name", "ETH"),
+                "Symbol": chain.get("native_currency_symbol", "ETH"),
+                "Decimals": chain.get("native_currency_decimals", 18)
+            },
+            "RpcUrl": chain["rpc_url"],
+            "Explorer": {
+                "Name": chain.get("explorer_name", "Explorer"),
+                "Url": chain.get("explorer_url", "")
+            },
+            "LogoURL": _get_chain_logo(chain["name"]),
+            "Testnet": True,
+            "ChainSelector": chain["chain_selector"],
+            "LinkContract": chain_contracts.linkToken or chain["existing_contracts"]["link_token"],
+            "RouterAddress": chain_contracts.router
+        }
+        networks.append(network)
 
-    plan.print(contracts_addresses)
+    
+    # Build tokens
+    token_configs = {
+        "CCIP-BnM": {"logo": "ccip-bnm", "tags": ["chainlink", "default"]},
+        "LINK": {"logo": "link", "tags": ["chainlink", "default"]},
+        "WETH": {"logo": "weth", "tags": ["wrapped", "default"]}
+    }
+    
+    
+    for cct_token in cct_tokens:
+        cct_tokens.append({
+            "Symbol": cct_token.symbol,
+            "LogoURL": cct_token.logo_url,
+            "Tags": json.encode(cct_token.tags),
+            "Addresses": cct_token.addresses # TODO: map chain id per corresponding address for token in that chain
+        })
+    
+    # Generate config artifact
+    config_artifact = plan.render_templates(
+        name = "ccip-ui-config",
+        config = {
+            "network-config.yaml": struct(
+                template = read_file("./ccip-ui-template.yaml"),
+                data = {"Networks": networks, "Tokens": cct_tokens}
+            )
+        }
+    )
+    
+    # Start service
+    ccip_ui = plan.add_service(
+        name = "ccip-ui",
+        config = ServiceConfig(
+            image = CCIP_UI_IMAGE,
+            ports = {"http": PortSpec(number = 3000, transport_protocol = "TCP")},
+            files = {"/app/public": config_artifact},
+            env_vars = {"NEXT_PUBLIC_CCIP_CONFIG_FILE": "/network-config.yaml"}
+        )
+    )
+    
+    plan.print("CCIP UI started at: http://{}:{}".format(ccip_ui.ip_address, ccip_ui.ports["http"].number))
+    return ccip_ui
+
+def _get_chain_logo(chain_name):
+    """Returns logo URL for known chains"""
+    logos = {"ethereum": "ethereum", "sepolia": "ethereum", "arbitrum": "arbitrum", 
+             "optimism": "optimism", "polygon": "polygon", "avalanche": "avalanche", 
+             "bsc": "bsc", "base": "base"}
+    
+    for key, logo in logos.items():
+        if key in chain_name.lower():
+            return "https://d2f70xi62kby8n.cloudfront.net/bridge/icons/networks/{}.svg?auto=compress%2Cformat".format(logo)
+    return "https://d2f70xi62kby8n.cloudfront.net/bridge/icons/networks/ethereum.svg?auto=compress%2Cformat"
 
 def replace_http_with_ws(rpc_url):
     """Convert HTTP RPC URL to WebSocket URL"""
