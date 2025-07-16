@@ -1,6 +1,6 @@
-chainlink_pkg = import_module("./src/chainlink-node-package/main.star")
-hardhat_package = import_module("./src/hardhat-package/main.star")
-ocr = import_module("./src/chainlink-node-package/src/ocr/ocr.star")
+chainlink_pkg = import_module("github.com/LZeroAnalytics/chainlink-node-package/main.star")
+hardhat_package = import_module("github.com/LZeroAnalytics/hardhat-package/main.star")
+ocr = import_module("github.com/LZeroAnalytics/chainlink-node-package/src/ocr/ocr.star")
 DON_NODES_COUNT = 6
 CHAINLINK_IMAGE = "fravlaca/chainlink:0.3.0"
 CCIP_UI_IMAGE = "fravlaca/ccip-ui:0.1.0"
