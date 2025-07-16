@@ -1,10 +1,6 @@
-chainlink_pkg = import_module("github.com/LZeroAnalytics/chainlink-node-package/main.star")
-hardhat_package = import_module("github.com/LZeroAnalytics/hardhat-package/main.star")
-ocr = import_module("github.com/LZeroAnalytics/chainlink-node-package/src/ocr/ocr.star")
 DON_NODES_COUNT = 6
 CHAINLINK_IMAGE = "fravlaca/chainlink:0.3.0"
 CCIP_UI_IMAGE = "fravlaca/ccip-ui:0.1.0"
-
 # Auto-incremented version from GitHub workflow - update this when you want to use a newer build
 # Check https://hub.docker.com/r/fravlaca/hardhat-ccip-contracts/tags for latest versions
 HARDHAT_IMAGE = "fravlaca/hardhat-ccip-contracts:1.0.1"
@@ -12,6 +8,11 @@ HARDHAT_IMAGE = "fravlaca/hardhat-ccip-contracts:1.0.1"
 def run(plan, args = {}):
     config = args
     env = args["env"]
+    
+    # Initialize packages with environment
+    chainlink_pkg = import_module("github.com/LZeroAnalytics/chainlink-node-package@{}/main.star".format(env))
+    hardhat_package = import_module("github.com/LZeroAnalytics/hardhat-package@{}/main.star".format(env))
+    ocr = import_module("github.com/LZeroAnalytics/chainlink-node-package@{}/src/ocr/ocr.star".format(env))
    
     # Setup hardhat environment for contracts deployment
     hardhat_package.run(plan, image=HARDHAT_IMAGE+"-"+env) #project_url="github.com/LZeroAnalytics/hardhat-ccip-contracts"#, image="fravlaca/hardhat-ccip-contracts:0.1.0")
@@ -27,10 +28,10 @@ def run(plan, args = {}):
 
     hardhat_package.compile(plan)
 
-    home_chain_contracts = deploy_home_chain_contracts(plan, config)
+    home_chain_contracts = deploy_home_chain_contracts(plan, config, hardhat_package)
 
     # Start CCIP DON with proper node count (typically 7-13 nodes for production)
-    deployed_nodes = start_don(plan, config, home_chain_contracts.capReg)
+    deployed_nodes = start_don(plan, config, home_chain_contracts.capReg, chainlink_pkg)
 
     nodes_infos = []
     for i in range(DON_NODES_COUNT):
@@ -47,15 +48,15 @@ def run(plan, args = {}):
         })
 
     # Deploy and configure CCIP infrastructure FIRST
-    chains_contracts = deploy_ccip_contracts_on_chains(plan, config, nodes_infos, home_chain_contracts)
+    chains_contracts = deploy_ccip_contracts_on_chains(plan, config, nodes_infos, home_chain_contracts, hardhat_package)
     # Create CCIP jobs AFTER everything is configured
     bootstrap_node = plan.get_service(name="chainlink-ccip-node-0")
     p2pBootstraperID = nodes_infos[0]["p2p_peer_id"] + "@" + bootstrap_node.ip_address + ":" + str(bootstrap_node.ports["p2p"].number)
-    ccip_jobs_result = _create_ccip_jobs(plan, nodes_infos, p2pBootstraperID)
-    ccip_lanes_result = configure_ccip_lanes(plan, config, chains_contracts)
+    ccip_jobs_result = _create_ccip_jobs(plan, nodes_infos, p2pBootstraperID, chainlink_pkg)
+    ccip_lanes_result = configure_ccip_lanes(plan, config, chains_contracts, hardhat_package)
 
 
-    don_ids_per_chain = config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos)
+    don_ids_per_chain = config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos, ocr, hardhat_package)
 
     contracts_addresses = struct(
         home_chain_contracts = home_chain_contracts,
@@ -74,7 +75,7 @@ def run(plan, args = {}):
     )
 
 
-def start_don(plan, config, capReg):
+def start_don(plan, config, capReg, chainlink_pkg):
     # Create database and configs for all chainlink nodes in parallel
     chainlink_node_configs = []
     for i in range(DON_NODES_COUNT):
@@ -108,7 +109,7 @@ def start_don(plan, config, capReg):
     return result.services
 
 
-def deploy_home_chain_contracts(plan, config):    
+def deploy_home_chain_contracts(plan, config, hardhat_package):    
     # Build deployment parameters and extra cmds
     output_grep_cmd = " | grep -A 100 DEPLOYMENT_JSON_BEGIN | grep -B 100 DEPLOYMENT_JSON_END | sed '/DEPLOYMENT_JSON_BEGIN/d' | sed '/DEPLOYMENT_JSON_END/d'"
 
@@ -131,7 +132,7 @@ def deploy_home_chain_contracts(plan, config):
         rmnHome = deployment_homechain_result["extract.rmnHome"]
     )
 
-def deploy_ccip_contracts_on_chains(plan, config, nodes_infos, home_chain_contracts):
+def deploy_ccip_contracts_on_chains(plan, config, nodes_infos, home_chain_contracts, hardhat_package):
     # Build chain configurations
     chain_selectors = []
     readers = []
@@ -235,7 +236,7 @@ def deploy_ccip_contracts_on_chains(plan, config, nodes_infos, home_chain_contra
 
 
 
-def configure_ccip_lanes(plan, config, ccip_chains_result):
+def configure_ccip_lanes(plan, config, ccip_chains_result, hardhat_package):
     # Build bidirectional lanes configuration for all chain pairs
     lanes = []
     for chain in config["chains"]:
@@ -266,7 +267,7 @@ def configure_ccip_lanes(plan, config, ccip_chains_result):
         extraCmds = " | grep -A 100 DEPLOYMENT_JSON_BEGIN | grep -B 100 DEPLOYMENT_JSON_END | sed '/DEPLOYMENT_JSON_BEGIN/d' | sed '/DEPLOYMENT_JSON_END/d'"
     )
 
-def _create_ccip_jobs(plan, nodes_infos, p2pBootstraperID):
+def _create_ccip_jobs(plan, nodes_infos, p2pBootstraperID, chainlink_pkg):
     """Create and sets up CCIP jobs on all nodes"""
     for i in range(DON_NODES_COUNT):
         if i == 0:
@@ -282,7 +283,7 @@ def _create_ccip_jobs(plan, nodes_infos, p2pBootstraperID):
                 "OCR2_KEY_BUNDLE": nodes_infos[i]["ocr_key_bundle_id"]
             })
 
-def config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos):
+def config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos, ocr, hardhat_package):
     """Configure OCR3 for CCIP commit and exec plugins on all chains."""
     
     # Extract required information
