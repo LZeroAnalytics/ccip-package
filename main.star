@@ -11,9 +11,7 @@ def run(plan, args = {}):
     
     # Initialize packages with environment
     chainlink_pkg = import_module("github.com/LZeroAnalytics/chainlink-node-package@{}/main.star".format(env))
-    hardhat_package = import_module("github.com/LZeroAnalytics/hardhat-package@{}/main.star".format(env))
-    ocr = import_module("github.com/LZeroAnalytics/chainlink-node-package@{}/src/ocr/ocr.star".format(env))
-   
+    hardhat_package = import_module("github.com/LZeroAnalytics/hardhat-package@{}/main.star".format(env))   
     # Setup hardhat environment for contracts deployment
     hardhat_package.run(plan, image=HARDHAT_IMAGE+"-"+env) #project_url="github.com/LZeroAnalytics/hardhat-ccip-contracts"#, image="fravlaca/hardhat-ccip-contracts:0.1.0")
     networks = {}
@@ -56,7 +54,7 @@ def run(plan, args = {}):
     ccip_lanes_result = configure_ccip_lanes(plan, config, chains_contracts, hardhat_package)
 
 
-    don_ids_per_chain = config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos, ocr, hardhat_package)
+    don_ids_per_chain = config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos, chainlink_pkg, hardhat_package)
 
     contracts_addresses = struct(
         home_chain_contracts = home_chain_contracts,
@@ -283,14 +281,14 @@ def _create_ccip_jobs(plan, nodes_infos, p2pBootstraperID, chainlink_pkg):
                 "OCR2_KEY_BUNDLE": nodes_infos[i]["ocr_key_bundle_id"]
             })
 
-def config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos, ocr, hardhat_package):
+def config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos, chainlink_pkg, hardhat_package):
     """Configure OCR3 for CCIP commit and exec plugins on all chains."""
     
     # Extract required information
     home_chain_selector = config["chains"][0]["chain_selector"]
     feed_chain_selector = config["chains"][0]["chain_selector"]  # Using home as feed for now
     
-    ocr.init_ocr3_service(plan)
+    chainlink_pkg.ocr.init_ocr3_service(plan)
 
     don_ids_per_chain = {}
     # Setup OCR3 for each chain
@@ -317,10 +315,10 @@ def config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos
             "feedChainSelector": str(feed_chain_selector)
         }
         
-        commit_ocr3_result = ocr.generate_ocr3config(plan, commit_ocr3_input)
+        commit_ocr3_result = chainlink_pkg.ocr.generate_ocr3config(plan, commit_ocr3_input)
 
         commit_ocr3_input["pluginType"] = "exec"
-        exec_ocr3_result = ocr.generate_ocr3config(plan, commit_ocr3_input)
+        exec_ocr3_result = chainlink_pkg.ocr.generate_ocr3config(plan, commit_ocr3_input)
         
         signers = []
         transmitters = []
