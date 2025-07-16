@@ -1,23 +1,26 @@
 chains:
-  - chain_id: 9215983
-    chain_selector: #TODO
-    name: "ethereum-1"
-    rpc_url: "https://dbe86096b10d4900b782ceea78f86ca4-rpc.network.bloctopus.io"
-    private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
-    faucet: "https://faucet.chain.link/ethereum/mainnet"
-    existing_contracts:
-      link_token: "0x514910771AF9Ca656af840dff83E8264EcF986CA"
-      link_eth_feed: "0xdc530d9457755926550b59e8eccdae7624181557"
-      eth_usd_feed: "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
-      weth9: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
-  - chain_id: 7298107
-    chain_selector: #TODO
+  - chain_id: 4348377
+    chain_selector: "16140901064500206041"
     name: "ethereum-2"
-    rpc_url: "https://46c01da3be654aecb16d662a4e9406a4-rpc.network.bloctopus.io"
+    rpc_url: "https://16c201d99bc54b79b1d0e606d7f76134-rpc.network.bloctopus.io"
+    ws_url: "wss://16c201d99bc54b79b1d0e606d7f76134-rpc.network.bloctopus.io"
     private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
-    faucet: "https://faucet.chain.link/ethereum/mainnet"
+    faucet: "https://16c201d99bc54b79b1d0e606d7f76134-faucet.network.bloctopus.io"
     existing_contracts:
       link_token: "0x514910771AF9Ca656af840dff83E8264EcF986CA"
       link_eth_feed: "0xdc530d9457755926550b59e8eccdae7624181557"
       eth_usd_feed: "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
       weth9: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+  - chain_id: 4787503
+    chain_selector: "16140901064498653342"
+    name: "ethereum-1"
+    rpc_url: "https://940ce3aef31146d799acd480822db72c-blockscout.network.bloctopus.io"
+    ws_url: "wss://940ce3aef31146d799acd480822db72c-rpc.network.bloctopus.io"
+    private_key: "3a23daa1250597152769c50729081a957271a32fee151e478356d1f75867a527"
+    faucet: "https://940ce3aef31146d799acd480822db72c-faucet.network.bloctopus.io"
+    existing_contracts:
+      link_token: "0x514910771AF9Ca656af840dff83E8264EcF986CA"
+      link_eth_feed: "0xdc530d9457755926550b59e8eccdae7624181557"
+      eth_usd_feed: "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+      weth9: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+env: "dev"

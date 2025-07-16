@@ -1,15 +1,20 @@
 chainlink_pkg = import_module("./src/chainlink-node-package/main.star")
-hardhat_package = import_module("github.com/LZeroAnalytics/hardhat-package/main.star")
+hardhat_package = import_module("./src/hardhat-package/main.star")
 ocr = import_module("./src/chainlink-node-package/src/ocr/ocr.star")
 DON_NODES_COUNT = 6
 CHAINLINK_IMAGE = "fravlaca/chainlink:0.3.0"
 CCIP_UI_IMAGE = "fravlaca/ccip-ui:0.1.0"
 
+# Auto-incremented version from GitHub workflow - update this when you want to use a newer build
+# Check https://hub.docker.com/r/fravlaca/hardhat-ccip-contracts/tags for latest versions
+HARDHAT_IMAGE = "fravlaca/hardhat-ccip-contracts:1.0.1"
+
 def run(plan, args = {}):
     config = args
+    env = args["env"]
    
     # Setup hardhat environment for contracts deployment
-    hardhat_package.run(plan, "github.com/LZeroAnalytics/hardhat-ccip-contracts")
+    hardhat_package.run(plan, image=HARDHAT_IMAGE+"-"+env) #project_url="github.com/LZeroAnalytics/hardhat-ccip-contracts"#, image="fravlaca/hardhat-ccip-contracts:0.1.0")
     networks = {}
     for chain in config["chains"]:
         networks[chain["name"]] = {
@@ -30,26 +35,32 @@ def run(plan, args = {}):
     nodes_infos = []
     for i in range(DON_NODES_COUNT):
         node_name = "chainlink-ccip-node-" + str(i)
+        eth_keys = {}
+        for chain in config["chains"]:
+            eth_keys[chain["chain_id"]] = chainlink_pkg.node_utils.get_eth_key(plan, node_name, chain["chain_id"])
         nodes_infos.append({
             "node_name": node_name,
             "ocr_key": chainlink_pkg.node_utils.get_ocr_key(plan, node_name),
             "ocr_key_bundle_id": chainlink_pkg.node_utils.get_ocr_key_bundle_id(plan, node_name),
             "p2p_peer_id": chainlink_pkg.node_utils.get_p2p_peer_id(plan, node_name),
-            "eth_key": chainlink_pkg.node_utils.get_eth_key(plan, node_name)
+            "eth_keys": eth_keys
         })
 
     # Deploy and configure CCIP infrastructure FIRST
     chains_contracts = deploy_ccip_contracts_on_chains(plan, config, nodes_infos, home_chain_contracts)
-    ccip_lanes_result = configure_ccip_lanes(plan, config, chains_contracts)
-    config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos)
-
     # Create CCIP jobs AFTER everything is configured
-    p2pBootstraperID = nodes_infos[0]["p2p_peer_id"] + "@" + deployed_nodes["chainlink-ccip-node-0"].ip_address + ":" + str(deployed_nodes["chainlink-ccip-node-0"].ports["p2p-cap"].number)
+    bootstrap_node = plan.get_service(name="chainlink-ccip-node-0")
+    p2pBootstraperID = nodes_infos[0]["p2p_peer_id"] + "@" + bootstrap_node.ip_address + ":" + str(bootstrap_node.ports["p2p"].number)
     ccip_jobs_result = _create_ccip_jobs(plan, nodes_infos, p2pBootstraperID)
+    ccip_lanes_result = configure_ccip_lanes(plan, config, chains_contracts)
+
+
+    don_ids_per_chain = config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos)
 
     contracts_addresses = struct(
         home_chain_contracts = home_chain_contracts,
-        chains_contracts = chains_contracts
+        chains_contracts = chains_contracts,
+        don_ids = don_ids_per_chain
     )
 
     #spinup_ccip_ui(plan, contracts_addresses, config["chains"])
@@ -76,8 +87,9 @@ def start_don(plan, config, capReg):
     for chain in config["chains"]:
         chains.append({
             "rpc": chain["rpc_url"],
-            "ws": replace_http_with_ws(chain["rpc_url"]),
-            "chain_id": chain["chain_id"]
+            "ws": chain["ws_url"],
+            "chain_id": chain["chain_id"], 
+            "existing_contracts": chain["existing_contracts"]
         })
     
     # Pass the chainlink nodes configuration to the chainlink package
@@ -90,7 +102,7 @@ def start_don(plan, config, capReg):
     for chain in config["chains"]:
         faucet_url = chain["faucet"]
         for node_name in result.services.keys():
-            eth_key = chainlink_pkg.node_utils.get_eth_key(plan, node_name)
+            eth_key = chainlink_pkg.node_utils.get_eth_key(plan, node_name, chain["chain_id"])
             chainlink_pkg.node_utils.fund_eth_key(plan, eth_key, faucet_url)
 
     return result.services
@@ -277,95 +289,105 @@ def config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos
     home_chain_selector = config["chains"][0]["chain_selector"]
     feed_chain_selector = config["chains"][0]["chain_selector"]  # Using home as feed for now
     
-    # Collect node OCR3 information
-    nodes_data = []
-    for node_infos in nodes_infos:
-        node_info = {
-            "onchainKey": node_infos["ocr_key"].on_chain_key,
-            "offchainKey": node_infos["ocr_key"].off_chain_key,
-            "configKey": node_infos["ocr_key"].config_key,
-            "peerID": node_infos["p2p_peer_id"],
-            "transmitter": node_infos["eth_key"]
-        }
-        nodes_data.append(node_info)
-        
     ocr.init_ocr3_service(plan)
 
+    don_ids_per_chain = {}
     # Setup OCR3 for each chain
     for chain_config in config["chains"]:
+        nodes_data = []
+        for node_infos in nodes_infos:
+            node_info = {
+                "onchainKey": node_infos["ocr_key"].on_chain_key,
+                "offchainKey": node_infos["ocr_key"].off_chain_key,
+                "configKey": node_infos["ocr_key"].config_key,
+                "peerID": node_infos["p2p_peer_id"],
+                "transmitter": node_infos["eth_keys"][chain_config["chain_id"]]
+            }
+            nodes_data.append(node_info)
         chain_selector = chain_config["chain_selector"]
         chain_contracts = chains_contracts[chain_config["name"]]
         
         # Setup both commit and exec plugins
-        for plugin_type in ["commit", "exec"]:
-            plan.print("Setting up OCR3 {} plugin for chain {}".format(plugin_type, chain_config["name"]))
-            
-            # Generate OCR3 config using the existing generator
-            commit_ocr3_input = {
-                "nodes": nodes_data,
-                "pluginType": "commit",
-                "chainSelector": str(chain_selector),
-                "feedChainSelector": str(feed_chain_selector)
+        # Generate OCR3 config using the existing generator
+        commit_ocr3_input = {
+            "nodes": nodes_data,
+            "pluginType": "commit",
+            "chainSelector": str(chain_selector),
+            "feedChainSelector": str(feed_chain_selector)
+        }
+        
+        commit_ocr3_result = ocr.generate_ocr3config(plan, commit_ocr3_input)
+
+        commit_ocr3_input["pluginType"] = "exec"
+        exec_ocr3_result = ocr.generate_ocr3config(plan, commit_ocr3_input)
+        
+        signers = []
+        transmitters = []
+        ocr3_nodes = []
+        for i, node in enumerate(nodes_data):
+            ocr3_nodes.append({
+                "p2pId": node["peerID"],
+                "signerKey": commit_ocr3_result["extract.signer_{}".format(i)],
+                "transmitterKey": commit_ocr3_result["extract.transmitter_{}".format(i)]
+            })
+            signers.append(commit_ocr3_result["extract.signer_{}".format(i)])
+            transmitters.append(commit_ocr3_result["extract.transmitter_{}".format(i)])
+
+        # Prepare parameters for TypeScript script
+        setup_params = {
+            "homeChainSelector": str(home_chain_selector),
+            "remoteChainSelector": str(chain_selector),
+            "chainName": chain_config["name"],
+            "feedChainSelector": str(feed_chain_selector),
+            "ccipHome": home_chain_contracts.ccipHome,
+            "capabilitiesRegistry": home_chain_contracts.capReg,
+            "offRamp": chain_contracts.offRamp,
+            "rmnHome": home_chain_contracts.rmnHome,
+            "commitOCR3Config": {
+                "signers": signers,           # Use direct array
+                "transmitters": transmitters, # Use direct array
+                "f": commit_ocr3_result["extract.f"],
+                "offchainConfigVersion": commit_ocr3_result["extract.offchain_cfg_ver"],
+                "offchainConfig": commit_ocr3_result["extract.offchain_cfg"],
+                "nodes": ocr3_nodes
+            },
+            "execOCR3Config": {
+                "signers": signers,             # Use direct array
+                "transmitters": transmitters,   # Use direct array
+                "f": exec_ocr3_result["extract.f"],
+                "offchainConfigVersion": exec_ocr3_result["extract.offchain_cfg_ver"],
+                "offchainConfig": exec_ocr3_result["extract.offchain_cfg"],
+                "nodes": ocr3_nodes
             }
-            
-            commit_ocr3_result = ocr.generate_ocr3config(plan, commit_ocr3_input)
+        }
 
-            commit_ocr3_input["pluginType"] = "exec"
-            exec_ocr3_result = ocr.generate_ocr3config(plan, commit_ocr3_input)
-            
-            signers = []
-            transmitters = []
-            ocr3_nodes = []
-            for i, node in enumerate(nodes_data):
-                ocr3_nodes.append({
-                    "p2pId": node["peerID"],
-                    "signerKey": commit_ocr3_result["extract.signer_{}".format(i)],
-                    "transmitterKey": commit_ocr3_result["extract.transmitter_{}".format(i)]
-                })
-                signers.append(commit_ocr3_result["extract.signer_{}".format(i)])
-                transmitters.append(commit_ocr3_result["extract.transmitter_{}".format(i)])
+        plan.print("Setting up OCR3 ccip commit and exec plugin for chain {}".format(chain_config["name"]))
 
-            # Prepare parameters for TypeScript script
-            setup_params = {
-                "homeChainSelector": str(home_chain_selector),
-                "remoteChainSelector": str(chain_selector),
-                "chainName": chain_config["name"],
-                "feedChainSelector": str(feed_chain_selector),
-                "ccipHome": home_chain_contracts.ccipHome,
-                "capabilitiesRegistry": home_chain_contracts.capReg,
-                "offRamp": chain_contracts.offRamp,
-                "rmnHome": home_chain_contracts.rmnHome,
-                "commitOCR3Config": {
-                    "signers": signers,           # Use direct array
-                    "transmitters": transmitters, # Use direct array
-                    "f": commit_ocr3_result["extract.f"],
-                    "offchainConfigVersion": commit_ocr3_result["extract.offchain_cfg_ver"],
-                    "offchainConfig": commit_ocr3_result["extract.offchain_cfg"],
-                    "nodes": ocr3_nodes
-                },
-                "execOCR3Config": {
-                    "signers": signers,             # Use direct array
-                    "transmitters": transmitters,   # Use direct array
-                    "f": exec_ocr3_result["extract.f"],
-                    "offchainConfigVersion": exec_ocr3_result["extract.offchain_cfg_ver"],
-                    "offchainConfig": exec_ocr3_result["extract.offchain_cfg"],
-                    "nodes": ocr3_nodes
-                }
-            }
+        existing_don_id = don_ids_per_chain.get(chain_config["name"])
+        if existing_don_id:
+            setup_params["existingDonId"] = existing_don_id
 
-            plan.print("setup_params: ")
-            plan.print(setup_params)
-            
-            # Run the TypeScript setup script
-            hardhat_package.script(
-                plan,
-                "scripts/deploy/ccip-v1_6/06-setup-ocr.ts",
-                network = config["chains"][0]["name"],
-                params = {
-                    "SETUP_PARAMS": json.encode(setup_params)
-                },
-                extraCmds = " | grep -A 100 DEPLOYMENT_JSON_BEGIN | grep -B 100 DEPLOYMENT_JSON_END | sed '/DEPLOYMENT_JSON_BEGIN/d' | sed '/DEPLOYMENT_JSON_END/d'"
-            )
+        plan.print("setup_params: ")
+        plan.print(setup_params)
+        
+        # Run the TypeScript setup script
+        result = hardhat_package.script(
+            plan,
+            "scripts/deploy/ccip-v1_6/06-setup-ocr.ts",
+            network = config["chains"][0]["name"],
+            return_keys= {
+                "donID": "donID"
+            },
+            params = {
+                "SETUP_PARAMS": json.encode(setup_params)
+            },
+            extraCmds = " | grep -A 100 DEPLOYMENT_JSON_BEGIN | grep -B 100 DEPLOYMENT_JSON_END | sed '/DEPLOYMENT_JSON_BEGIN/d' | sed '/DEPLOYMENT_JSON_END/d'"
+        )
+
+        don_id = result["extract.donID"]
+        don_ids_per_chain[chain_config["name"]] = don_id
+    
+    return don_ids_per_chain
 
 def spinup_ccip_ui(plan, contracts_addresses, chains_config):
     """Spins up the CCIP UI with dynamically generated network configuration"""
