@@ -1,4 +1,4 @@
-DON_NODES_COUNT = 6
+DON_NODES_COUNT = 4  # Minimum viable DON size for CCIP v1.6 (F=1)
 CHAINLINK_IMAGE = "fravlaca/chainlink:0.3.0"
 CCIP_UI_IMAGE = "fravlaca/ccip-ui:0.1.0"
 # Auto-incremented version from GitHub workflow - update this when you want to use a newer build
@@ -28,15 +28,35 @@ def run(plan, args = {}):
 
     home_chain_contracts = deploy_home_chain_contracts(plan, config, hardhat_package)
 
-    # Start CCIP DON with proper node count (typically 7-13 nodes for production)
+    # Start CCIP DON with minimum viable count (4 nodes=F1, production: 7-13 nodes=F2-4)
     deployed_nodes = start_don(plan, config, home_chain_contracts.capReg, chainlink_pkg)
 
     nodes_infos = []
     for i in range(DON_NODES_COUNT):
         node_name = "chainlink-ccip-node-" + str(i)
+        
+        # Delay between nodes to avoid Kubernetes rate limiting bursts
+        if i > 0:
+            plan.wait(
+                service_name=node_name, 
+                recipe=ExecRecipe(command=["sleep", "5"]),  # 5s delay to space out API calls
+                field="code", assertion="==", target_value=0, 
+                timeout="10s", description="Delay to avoid rate limiting"
+            )
+        
         eth_keys = {}
-        for chain in config["chains"]:
+        for j, chain in enumerate(config["chains"]):
             eth_keys[chain["chain_id"]] = chainlink_pkg.node_utils.get_eth_key(plan, node_name, chain["chain_id"])
+            
+            # Small delay between chains if multiple
+            if j < len(config["chains"]) - 1:
+                plan.wait(
+                    service_name=node_name, 
+                    recipe=ExecRecipe(command=["sleep", "2"]),  # 2s delay per chain
+                    field="code", assertion="==", target_value=0, 
+                    timeout="5s", description="Delay between chain key retrievals"
+                )
+        
         nodes_infos.append({
             "node_name": node_name,
             "ocr_key": chainlink_pkg.node_utils.get_ocr_key(plan, node_name),
@@ -98,9 +118,17 @@ def start_don(plan, config, capReg, chainlink_pkg):
     }, capabilitiesRegistry=capReg)
     
     # Fund nodes if faucet provided
-    for chain in config["chains"]:
+    for k, chain in enumerate(config["chains"]):
         faucet_url = chain["faucet"]
-        for node_name in result.services.keys():
+        for i, node_name in enumerate(result.services.keys()):
+            # Add delay between funding operations to space out API calls
+            if i > 0 or k > 0:
+                plan.wait(
+                    service_name=node_name, 
+                    recipe=ExecRecipe(command=["sleep", "3"]),  # 3s delay
+                    field="code", assertion="==", target_value=0, 
+                    timeout="5s", description="Delay between funding operations"
+                )
             eth_key = chainlink_pkg.node_utils.get_eth_key(plan, node_name, chain["chain_id"])
             chainlink_pkg.node_utils.fund_eth_key(plan, eth_key, faucet_url)
 
