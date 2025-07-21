@@ -76,12 +76,6 @@ def run(plan, args = {}):
 
     don_ids_per_chain = config_ocr(plan, config, home_chain_contracts, chains_contracts, nodes_infos, chainlink_pkg, hardhat_package)
 
-    contracts_addresses = struct(
-        home_chain_contracts = home_chain_contracts,
-        chains_contracts = chains_contracts,
-        don_ids = don_ids_per_chain
-    )
-
     #spinup_ccip_ui(plan, contracts_addresses, config["chains"])
 
     return struct(
@@ -255,7 +249,8 @@ def deploy_ccip_contracts_on_chains(plan, config, nodes_infos, home_chain_contra
             nonceManager = homechain_contracts["extract.nonceManager"],
             feeQuoter = homechain_contracts["extract.feeQuoter"],
             onRamp = homechain_contracts["extract.onRamp"],
-            offRamp = homechain_contracts["extract.offRamp"]
+            offRamp = homechain_contracts["extract.offRamp"],
+            chainSelector = chain["chain_selector"]
         )
 
     return chain_contracts
