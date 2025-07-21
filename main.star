@@ -3,7 +3,7 @@ CHAINLINK_IMAGE = "fravlaca/chainlink:0.3.0"
 CCIP_UI_IMAGE = "fravlaca/ccip-ui:0.1.0"
 # Auto-incremented version from GitHub workflow - update this when you want to use a newer build
 # Check https://hub.docker.com/r/fravlaca/hardhat-ccip-contracts/tags for latest versions
-HARDHAT_IMAGE = "fravlaca/hardhat-ccip-contracts:1.0.2"
+HARDHAT_IMAGE = "fravlaca/hardhat-ccip-contracts:1.0.3"
 
 def run(plan, args = {}):
     config = args
